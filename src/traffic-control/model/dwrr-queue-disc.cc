@@ -49,7 +49,14 @@ DWRRQueueDisc::~DWRRQueueDisc ()
 void
 DWRRQueueDisc::AddDWRRClass (Ptr<QueueDisc> qdisc, int32_t cl, uint32_t quantum)
 {
+    DWRRQueueDisc::AddDWRRClass (qdisc, cl, 0, quantum);
+}
+
+void
+DWRRQueueDisc::AddDWRRClass (Ptr<QueueDisc> qdisc, int32_t cl, uint32_t priority, uint32_t quantum)
+{
     Ptr<DWRRClass> dwrrClass = CreateObject<DWRRClass> ();
+    dwrrClass->priority = priority;
     dwrrClass->qdisc = qdisc;
     dwrrClass->quantum = quantum;
     dwrrClass->deficit = 0;
@@ -65,7 +72,6 @@ DWRRQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 
     int32_t cl = Classify (item);
 
-    NS_LOG_LOGIC ("Found class for the enqueued item: " << cl);
 
     std::map<int32_t, Ptr<DWRRClass> >::iterator itr = m_DWRRs.find (cl);
 
@@ -78,6 +84,8 @@ DWRRQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 
     dwrrClass = itr->second;
 
+    NS_LOG_LOGIC ("Found class for the enqueued item: " << cl << " with priority: " << dwrrClass->priority);
+
     if (!dwrrClass->qdisc->Enqueue (item))
     {
         Drop (item);
@@ -86,7 +94,7 @@ DWRRQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 
     if (dwrrClass->qdisc->GetNPackets () == 1)
     {
-        m_active.push_back (dwrrClass);
+        m_active[dwrrClass->priority].push_back (dwrrClass);
         dwrrClass->deficit = dwrrClass->quantum;
     }
 
@@ -102,14 +110,30 @@ DWRRQueueDisc::DoDequeue (void)
 
     if (m_active.empty ())
     {
-        NS_LOG_LOGIC ("Active list is empty");
+        NS_LOG_LOGIC ("Active map is empty");
+        return 0;
+    }
+
+    int32_t highestPriority = -1;
+    std::map<uint32_t, std::list<Ptr<DWRRClass> > >::const_iterator itr = m_active.begin ();
+    for (; itr != m_active.end (); ++itr)
+    {
+        if (static_cast<int32_t>(itr->first) >= highestPriority
+                && !(itr->second).empty ())
+        {
+            highestPriority = static_cast<int32_t>(itr->first);
+        }
+    }
+
+    if (highestPriority == -1)
+    {
+        NS_LOG_LOGIC ("Cannot find active queue");
         return 0;
     }
 
     while (true)
     {
-
-        Ptr<DWRRClass> dwrrClass = m_active.front ();
+        Ptr<DWRRClass> dwrrClass = m_active[highestPriority].front ();
 
         item = dwrrClass->qdisc->Peek ();
         if (item == 0)
@@ -134,14 +158,14 @@ DWRRQueueDisc::DoDequeue (void)
 
             if (dwrrClass->qdisc->GetNPackets () == 0)
             {
-                m_active.pop_front ();
+                m_active[highestPriority].pop_front ();
             }
             return retItem;
         }
 
         dwrrClass->deficit += dwrrClass->quantum;
-        m_active.pop_front ();
-        m_active.push_back (dwrrClass);
+        m_active[highestPriority].pop_front ();
+        m_active[highestPriority].push_back (dwrrClass);
     }
 
     return 0;
@@ -154,11 +178,28 @@ DWRRQueueDisc::DoPeek (void) const
 
     if (m_active.empty ())
     {
-        NS_LOG_LOGIC ("Active list is empty");
+        NS_LOG_LOGIC ("Active map is empty");
         return 0;
     }
 
-    Ptr<DWRRClass> dwrrClass = m_active.front ();
+    int32_t highestPriority = -1;
+    std::map<uint32_t, std::list<Ptr<DWRRClass> > >::const_iterator itr = m_active.begin ();
+    for (; itr != m_active.end (); ++itr)
+    {
+        if (static_cast<int32_t>(itr->first) >= highestPriority
+                && !(itr->second).empty ())
+        {
+            highestPriority = static_cast<int32_t>(itr->first);
+        }
+    }
+
+    if (highestPriority == -1)
+    {
+        NS_LOG_LOGIC ("Cannot find active queue");
+        return 0;
+    }
+
+    Ptr<DWRRClass> dwrrClass = m_active.at (highestPriority).front ();
 
     return dwrrClass->qdisc->Peek ();
 }

@@ -22,7 +22,14 @@ CreateDWRRQueueDisc ()
     for (int i = 0; i < QUEUE_NUM; i++)
     {
         Ptr<CoDelQueueDisc> codelQueueDisc = CreateObject<CoDelQueueDisc> ();
-        qdisc->AddDWRRClass (codelQueueDisc, i, 14000); //Quantum 14kb
+        if (i < 4)
+        {
+            qdisc->AddDWRRClass (codelQueueDisc, i, i, 14000); //Quantum 14kb
+        }
+        else
+        {
+            qdisc->AddDWRRClass (codelQueueDisc, i, 14000); //Quantum 14kb
+        }
     }
     return qdisc;
 }

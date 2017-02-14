@@ -14,6 +14,8 @@ public:
 
     DWRRClass ();
 
+    uint32_t priority;
+
     Ptr<QueueDisc> qdisc;
     uint32_t quantum;
     uint32_t deficit;
@@ -30,6 +32,7 @@ public:
     virtual ~DWRRQueueDisc ();
 
     void AddDWRRClass (Ptr<QueueDisc> qdisc, int32_t cl, uint32_t quantum);
+    void AddDWRRClass (Ptr<QueueDisc> qdisc, int32_t cl, uint32_t priority, uint32_t quantum);
 
 private:
     // Operations offered by multi queue disc should be the same as queue disc
@@ -39,8 +42,10 @@ private:
     virtual bool CheckConfig (void);
     virtual void InitializeParams (void);
 
-    // The internal DWRR queue discs are organized in a linked list
-    std::list<Ptr<DWRRClass> > m_active;
+    // The internal DWRR queue discs are first organized in a map
+    // with the priority as key and then in a linked list if they are
+    // with the same priority
+    std::map<uint32_t, std::list<Ptr<DWRRClass> > > m_active;
     std::map<int32_t, Ptr<DWRRClass> > m_DWRRs;
 };
 
