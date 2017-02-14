@@ -49,13 +49,28 @@ private:
   virtual int32_t DoClassify (Ptr<QueueDiscItem> item) const = 0;
 };
 
+class Ipv4SimplePacketFilter: public Ipv4PacketFilter {
+public:
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
+  static TypeId GetTypeId (void);
+
+  Ipv4SimplePacketFilter ();
+  virtual ~Ipv4SimplePacketFilter ();
+
+private:
+  virtual int32_t DoClassify (Ptr<QueueDiscItem> item) const;
+};
+
 
 /**
  * \ingroup internet
  *
  * PfifoFastIpv4PacketFilter is the filter to be added to the PfifoFast
  * queue disc to simulate the behavior of the pfifo_fast Linux queue disc.
- * 
+ *
  * Two modes of operation are provided. In PF_MODE_TOS mode, packets are
  * classified based on the TOS byte (originally defined by RFC 1349:
  * http://www.ietf.org/rfc/rfc1349.txt)

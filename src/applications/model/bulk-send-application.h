@@ -124,6 +124,8 @@ private:
   uint32_t        m_accumPackets;
   uint32_t        m_delayThresh;
 
+  uint32_t        m_tos;
+
   /// Traced Callback: sent packets
   TracedCallback<Ptr<const Packet> > m_txTrace;
 

@@ -31,7 +31,7 @@ NS_LOG_COMPONENT_DEFINE ("Ipv4PacketFilter");
 
 NS_OBJECT_ENSURE_REGISTERED (Ipv4PacketFilter);
 
-TypeId 
+TypeId
 Ipv4PacketFilter::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::Ipv4PacketFilter")
@@ -60,9 +60,42 @@ Ipv4PacketFilter::CheckProtocol (Ptr<QueueDiscItem> item) const
 
 // ------------------------------------------------------------------------- //
 
+NS_OBJECT_ENSURE_REGISTERED (Ipv4SimplePacketFilter);
+
+TypeId
+Ipv4SimplePacketFilter::GetTypeId (void)
+{
+  static TypeId tid = TypeId ("ns3::Ipv4SimplePacketFilter")
+    .SetParent<Ipv4PacketFilter> ()
+    .SetGroupName ("Internet")
+  ;
+  return tid;
+}
+
+Ipv4SimplePacketFilter::Ipv4SimplePacketFilter ()
+{
+    NS_LOG_FUNCTION (this);
+}
+
+Ipv4SimplePacketFilter::~Ipv4SimplePacketFilter ()
+{
+    NS_LOG_FUNCTION (this);
+}
+
+int32_t
+Ipv4SimplePacketFilter::DoClassify (Ptr<QueueDiscItem> item) const
+{
+  NS_LOG_FUNCTION (this << item);
+  Ptr<Ipv4QueueDiscItem> ipv4Item = DynamicCast<Ipv4QueueDiscItem> (item);
+  uint8_t tos = ipv4Item->GetHeader ().GetTos ();
+  return static_cast<int32_t> (tos >> 2);
+}
+
+// ------------------------------------------------------------------------- //
+
 NS_OBJECT_ENSURE_REGISTERED (PfifoFastIpv4PacketFilter);
 
-TypeId 
+TypeId
 PfifoFastIpv4PacketFilter::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::PfifoFastIpv4PacketFilter")

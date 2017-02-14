@@ -70,6 +70,11 @@ BulkSendApplication::GetTypeId (void)
                    TimeValue (MicroSeconds (100)),
                    MakeTimeAccessor (&BulkSendApplication::m_delayTime),
                    MakeTimeChecker())
+    .AddAttribute ("SimpleTOS",
+                   "A simple version of TOS",
+                   UintegerValue (0),
+                   MakeUintegerAccessor (&BulkSendApplication::m_tos),
+                   MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("Protocol", "The type of protocol to use.",
                    TypeIdValue (TcpSocketFactory::GetTypeId ()),
                    MakeTypeIdAccessor (&BulkSendApplication::m_tid),
@@ -201,6 +206,9 @@ void BulkSendApplication::SendData (void)
         }
       NS_LOG_LOGIC ("sending packet at " << Simulator::Now ());
       Ptr<Packet> packet = Create<Packet> (toSend);
+      SocketIpTosTag tosTag;
+      tosTag.SetTos (m_tos << 2);
+      packet->AddPacketTag (tosTag);
       m_txTrace (packet);
       int actual = m_socket->Send (packet);
       if (actual > 0)
