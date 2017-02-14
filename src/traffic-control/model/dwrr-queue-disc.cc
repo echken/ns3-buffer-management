@@ -118,10 +118,10 @@ DWRRQueueDisc::DoDequeue (void)
     std::map<uint32_t, std::list<Ptr<DWRRClass> > >::const_iterator itr = m_active.begin ();
     for (; itr != m_active.end (); ++itr)
     {
-        if (static_cast<int32_t>(itr->first) >= highestPriority
+        if (static_cast<int32_t>(itr->first) > highestPriority
                 && !(itr->second).empty ())
         {
-            highestPriority = static_cast<int32_t>(itr->first);
+            highestPriority = static_cast<int32_t> (itr->first);
         }
     }
 
@@ -155,7 +155,10 @@ DWRRQueueDisc::DoDequeue (void)
         {
             dwrrClass->deficit -= length;
             Ptr<QueueDiscItem> retItem = dwrrClass->qdisc->Dequeue ();
-
+            if (retItem == 0)
+            {
+                return 0;
+            }
             if (dwrrClass->qdisc->GetNPackets () == 0)
             {
                 m_active[highestPriority].pop_front ();

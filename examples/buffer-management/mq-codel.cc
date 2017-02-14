@@ -12,6 +12,11 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("MQCoDel");
 
+enum PacketScheduling {
+    DWRR,
+    WFQ
+};
+
 Ptr<DWRRQueueDisc>
 CreateDWRRQueueDisc ()
 {
@@ -34,14 +39,44 @@ CreateDWRRQueueDisc ()
     return qdisc;
 }
 
+Ptr<WFQQueueDisc>
+CreateWFQQueueDisc ()
+{
+    Ptr<WFQQueueDisc> qdisc = CreateObject<WFQQueueDisc> ();
+    Ptr<Ipv4SimplePacketFilter> filter = CreateObject<Ipv4SimplePacketFilter> ();
+    qdisc->AddPacketFilter (filter);
+
+    for (int i = 0; i < QUEUE_NUM; i++)
+    {
+        Ptr<CoDelQueueDisc> codelQueueDisc = CreateObject<CoDelQueueDisc> ();
+        if (i < 4)
+        {
+            qdisc->AddWFQClass (codelQueueDisc, i, i, 14000); //Quantum 14kb
+        }
+        else
+        {
+            qdisc->AddWFQClass (codelQueueDisc, i, 14000); //Quantum 14kb
+        }
+    }
+    return qdisc;
+}
+
 void
-InstallQueueDisc (NetDeviceContainer c)
+InstallQueueDisc (NetDeviceContainer c, PacketScheduling packetScheduling)
 {
     for (NetDeviceContainer::Iterator i = c.Begin (); i != c.End (); ++i)
     {
         Ptr<NetDevice> d = *i;
         Ptr<TrafficControlLayer> tc = d->GetNode ()->GetObject<TrafficControlLayer> ();
-        Ptr<DWRRQueueDisc> qdisc = CreateDWRRQueueDisc ();
+        Ptr<QueueDisc> qdisc = 0;
+        if (packetScheduling == DWRR)
+        {
+            qdisc = CreateDWRRQueueDisc ();
+        }
+        else
+        {
+            qdisc = CreateWFQQueueDisc ();
+        }
         qdisc->SetNetDevice (d);
         tc->SetRootQueueDiscOnDevice (d, qdisc);
     }
@@ -62,12 +97,13 @@ int main (int argc, char *argv[])
     Config::SetDefault ("ns3::TcpSocketBase::TLB", BooleanValue (true));
     Config::SetDefault ("ns3::RttEstimator::InitialEstimation", TimeValue (MicroSeconds (80)));
 
-
     std::string transportProt = "DcTcp";
+    std::string packetSchedulingStr = "DWRR";
+    PacketScheduling packetScheduling;
 
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
-
+    cmd.AddValue ("packetScheduling", "Packet scheduling algorithm to use: DWRR, WFQ", packetSchedulingStr);
     cmd.Parse (argc, argv);
 
     if (transportProt.compare ("Tcp") == 0)
@@ -78,6 +114,19 @@ int main (int argc, char *argv[])
     {
         NS_LOG_INFO ("Enabling DcTcp");
         Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpDCTCP::GetTypeId ()));
+    }
+    else
+    {
+        return 0;
+    }
+
+    if (packetSchedulingStr.compare ("DWRR") == 0)
+    {
+        packetScheduling = DWRR;
+    }
+    else if (packetSchedulingStr.compare ("WFQ") == 0)
+    {
+        packetScheduling = WFQ;
     }
     else
     {
@@ -130,12 +179,12 @@ int main (int argc, char *argv[])
     NetDeviceContainer d3d4 = p2p.Install (n3n4);
 
 
-    InstallQueueDisc (d0d1);
-    InstallQueueDisc (d1d2);
-    InstallQueueDisc (d2d4);
-    InstallQueueDisc (d4d5);
-    InstallQueueDisc (d1d3);
-    InstallQueueDisc (d3d4);
+    InstallQueueDisc (d0d1, packetScheduling);
+    InstallQueueDisc (d1d2, packetScheduling);
+    InstallQueueDisc (d2d4, packetScheduling);
+    InstallQueueDisc (d4d5, packetScheduling);
+    InstallQueueDisc (d1d3, packetScheduling);
+    InstallQueueDisc (d3d4, packetScheduling);
 
     NS_LOG_INFO ("Assign IP address");
     Ipv4AddressHelper ipv4;
