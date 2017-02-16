@@ -32,6 +32,8 @@
 #include "codel-queue-disc.h"
 #include "ns3/object-factory.h"
 #include "ns3/drop-tail-queue.h"
+#include "ns3/ipv4-header.h"
+#include "ns3/ipv4-queue-disc-item.h"
 
 namespace ns3 {
 
@@ -183,6 +185,11 @@ TypeId CoDelQueueDisc::GetTypeId (void)
                    StringValue ("5ms"),
                    MakeTimeAccessor (&CoDelQueueDisc::m_target),
                    MakeTimeChecker ())
+    .AddAttribute ("MarkingMode",
+                   "Whether the ECN marking would be enabled instead of dropping",
+                   BooleanValue (true),
+                   MakeBooleanAccessor (&CoDelQueueDisc::m_markingMode),
+                   MakeBooleanChecker ())
     .AddTraceSource ("Count",
                      "CoDel count",
                      MakeTraceSourceAccessor (&CoDelQueueDisc::m_count),
@@ -227,6 +234,7 @@ CoDelQueueDisc::CoDelQueueDisc ()
     m_state3 (0),
     m_states (0),
     m_dropOverLimit (0),
+    m_markingMode (true),
     m_sojourn (0)
 {
   NS_LOG_FUNCTION (this);
@@ -296,7 +304,7 @@ CoDelQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   // Tag packet with current time for DoDequeue() to compute sojourn time
   CoDelTimestampTag tag;
   p->AddPacketTag (tag);
-  
+
   GetInternalQueue (0)->Enqueue (item);
 
   NS_LOG_LOGIC ("Number packets " << GetInternalQueue (0)->GetNPackets ());
@@ -394,26 +402,53 @@ CoDelQueueDisc::DoDequeue (void)
               // rates so high that the next drop should happen now,
               // hence the while loop.
               NS_LOG_LOGIC ("Sojourn time is still above target and it's time for next drop; dropping " << p);
-              Drop (item);
+
+              Ptr<QueueDiscItem> markedItem = 0;
+              if (m_markingMode)
+              {
+                  NS_LOG_LOGIC ("Marking mode is on. We will mark ECN instead of dropping the packet");
+                  if (!MarkingECN (item))
+                  {
+                    NS_LOG_ERROR ("Cannot marking ECN");
+                    return 0;
+                  }
+                  markedItem = item;
+              }
+              else
+              {
+                Drop (item);
+              }
 
               ++m_dropCount;
               ++m_count;
+
               NewtonStep ();
               if (GetInternalQueue (0)->IsEmpty ())
                 {
                   m_dropping = false;
                   NS_LOG_LOGIC ("Queue empty");
                   ++m_states;
-                  return 0;
+                  if (markedItem)
+                  {
+                    return markedItem;
+                  }
+                  else
+                  {
+                    return 0;
+                  }
                 }
-              item = StaticCast<QueueDiscItem> (GetInternalQueue (0)->Dequeue ());
-              p = item ->GetPacket ();
 
-              NS_LOG_LOGIC ("Popped " << item);
-              NS_LOG_LOGIC ("Number packets remaining " << GetInternalQueue (0)->GetNPackets ());
-              NS_LOG_LOGIC ("Number bytes remaining " << GetInternalQueue (0)->GetNBytes ());
+              if (!m_markingMode)
+              {
+                item = StaticCast<QueueDiscItem> (GetInternalQueue (0)->Dequeue ());
+                p = item ->GetPacket ();
 
-              if (!OkToDrop (p, now))
+                NS_LOG_LOGIC ("Popped " << item);
+                NS_LOG_LOGIC ("Number packets remaining " << GetInternalQueue (0)->GetNPackets ());
+                NS_LOG_LOGIC ("Number bytes remaining " << GetInternalQueue (0)->GetNBytes ());
+              }
+
+              if (!m_markingMode && !OkToDrop (p, now))
                 {
                   /* leave dropping state */
                   NS_LOG_LOGIC ("Leaving dropping state");
@@ -426,6 +461,11 @@ CoDelQueueDisc::DoDequeue (void)
                   m_dropNext = ControlLaw (m_dropNext);
                   NS_LOG_LOGIC ("Scheduled next drop at " << (double)m_dropNext / 1000000);
                 }
+
+              if (markedItem)
+              {
+                  return markedItem;
+              }
             }
         }
     }
@@ -438,8 +478,23 @@ CoDelQueueDisc::DoDequeue (void)
         {
           // Drop the first packet and enter dropping state unless the queue is empty
           NS_LOG_LOGIC ("Sojourn time goes above target, dropping the first packet " << p << " and entering the dropping state");
+
+          Ptr<QueueDiscItem> markedItem = 0;
+          if (m_markingMode)
+          {
+              NS_LOG_LOGIC ("Marking mode is on. We will mark ECN instead of dropping the packet");
+              if (!MarkingECN (item))
+              {
+                  NS_LOG_ERROR ("Cannot marking ECN");
+                  return 0;
+              }
+              markedItem = item;
+          }
+          else
+          {
+              Drop (item);
+          }
           ++m_dropCount;
-          Drop (item);
 
           if (GetInternalQueue (0)->IsEmpty ())
             {
@@ -450,14 +505,17 @@ CoDelQueueDisc::DoDequeue (void)
             }
           else
             {
-              item = StaticCast<QueueDiscItem> (GetInternalQueue (0)->Dequeue ());
-              p = item->GetPacket ();
+              if (!m_markingMode)
+              {
+                item = StaticCast<QueueDiscItem> (GetInternalQueue (0)->Dequeue ());
+                p = item->GetPacket ();
 
-              NS_LOG_LOGIC ("Popped " << item);
-              NS_LOG_LOGIC ("Number packets remaining " << GetInternalQueue (0)->GetNPackets ());
-              NS_LOG_LOGIC ("Number bytes remaining " << GetInternalQueue (0)->GetNBytes ());
+                NS_LOG_LOGIC ("Popped " << item);
+                NS_LOG_LOGIC ("Number packets remaining " << GetInternalQueue (0)->GetNPackets ());
+                NS_LOG_LOGIC ("Number bytes remaining " << GetInternalQueue (0)->GetNBytes ());
 
-              okToDrop = OkToDrop (p, now);
+                okToDrop = OkToDrop (p, now);
+              }
               m_dropping = true;
             }
           ++m_state3;
@@ -481,6 +539,11 @@ CoDelQueueDisc::DoDequeue (void)
           NS_LOG_LOGIC ("Running ControlLaw for input now: " << (double)now);
           m_dropNext = ControlLaw (now);
           NS_LOG_LOGIC ("Scheduled next drop at " << (double)m_dropNext / 1000000 << " now " << (double)now / 1000000);
+
+          if (markedItem)
+          {
+            return markedItem;
+          }
         }
     }
   ++m_states;
@@ -641,6 +704,31 @@ void
 CoDelQueueDisc::InitializeParams (void)
 {
   NS_LOG_FUNCTION (this);
+}
+
+bool
+CoDelQueueDisc::MarkingECN (Ptr<QueueDiscItem> item)
+{
+  Ptr<Ipv4QueueDiscItem> ipv4Item = DynamicCast<Ipv4QueueDiscItem> (item);
+  if (ipv4Item == 0)
+  {
+    NS_LOG_ERROR ("Cannot convert the queue disc item to ipv4 queue disc item");
+    return false;
+  }
+
+  Ipv4Header header = ipv4Item -> GetHeader ();
+
+  if (!header.GetEcn () == Ipv4Header::ECN_ECT1)
+  {
+    NS_LOG_ERROR ("Cannot mark because the ECN field is not ECN_ECT1");
+    return false;
+  }
+
+  header.SetEcn(Ipv4Header::ECN_CE);
+  ipv4Item->SetHeader(header);
+
+  return true;
+
 }
 
 } // namespace ns3
