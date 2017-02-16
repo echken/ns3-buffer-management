@@ -410,6 +410,7 @@ CoDelQueueDisc::DoDequeue (void)
                   if (!MarkingECN (item))
                   {
                     NS_LOG_ERROR ("Cannot marking ECN");
+                    ++m_states;
                     return 0;
                   }
                   markedItem = item;
@@ -502,6 +503,14 @@ CoDelQueueDisc::DoDequeue (void)
               okToDrop = false;
               NS_LOG_LOGIC ("Queue empty");
               ++m_states;
+              if (markedItem)
+              {
+                  return markedItem;
+              }
+              else
+              {
+                  return 0;
+              }
             }
           else
             {
