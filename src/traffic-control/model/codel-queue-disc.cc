@@ -727,7 +727,7 @@ CoDelQueueDisc::MarkingECN (Ptr<QueueDiscItem> item)
 
   Ipv4Header header = ipv4Item -> GetHeader ();
 
-  if (!header.GetEcn () == Ipv4Header::ECN_ECT1)
+  if (header.GetEcn () != Ipv4Header::ECN_ECT1)
   {
     NS_LOG_ERROR ("Cannot mark because the ECN field is not ECN_ECT1");
     return false;
