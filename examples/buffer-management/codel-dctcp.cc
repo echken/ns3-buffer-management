@@ -222,29 +222,32 @@ int main (int argc, char *argv[])
     uint16_t port1 = 8080;
     uint16_t port2 = 8081;
 
-    BulkSendHelper source1 ("ns3::TcpSocketFactory", InetSocketAddress (i2i3.GetAddress(1), port1));
+    BulkSendHelper source1 ("ns3::TcpSocketFactory", InetSocketAddress (i2i3.GetAddress (1), port1));
     source1.SetAttribute ("MaxBytes", UintegerValue (0));
     source1.SetAttribute ("SendSize", UintegerValue (1400));
     ApplicationContainer sourceApps1 = source1.Install (c.Get (0));
     sourceApps1.Start (Seconds (0.0));
-    sourceApps1.Stop (Seconds (1.0));
+    sourceApps1.Stop (Seconds (0.1));
 
     PacketSinkHelper sink1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), port1));
     ApplicationContainer sinkApp1 = sink1.Install (c.Get (3));
     sinkApp1.Start (Seconds (0.0));
-    sinkApp1.Stop (Seconds (1.0));
+    sinkApp1.Stop (Seconds (0.1));
 
-    BulkSendHelper source2 ("ns3::TcpSocketFactory", InetSocketAddress (i2i3.GetAddress(1), port2));
-    source2.SetAttribute ("MaxBytes", UintegerValue (0));
-    source2.SetAttribute ("SendSize", UintegerValue (1400));
+    // Change to use on-off application
+    OnOffHelper source2 ("ns3::TcpSocketFactory", InetSocketAddress (i2i3.GetAddress (1), port2));
+    source2.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.001]"));
+    source2.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.01]"));
+    source2.SetAttribute ("DataRate", StringValue ("1Gbps"));
+    source2.SetAttribute ("PacketSize", UintegerValue (1400));
     ApplicationContainer sourceApps2 = source2.Install (c.Get (1));
     sourceApps2.Start (Seconds (0.0));
-    sourceApps2.Stop (Seconds (1.0));
+    sourceApps2.Stop (Seconds (0.1));
 
     PacketSinkHelper sink2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), port2));
     ApplicationContainer sinkApp2 = sink2.Install (c.Get (3));
     sinkApp2.Start (Seconds (0.0));
-    sinkApp2.Stop (Seconds (1.0));
+    sinkApp2.Stop (Seconds (0.1));
 
     NS_LOG_INFO ("Start Tracing System");
 
