@@ -20,30 +20,46 @@ enum AQM {
     CODEL
 };
 
-void
-DoGnuPlot ()
+
+std::string
+GetFormatedStr (std::string str, std::string terminal, AQM aqm, uint32_t interval, uint32_t target)
 {
-    Gnuplot cwndGnuplot ("cwnd.png");
+    std::stringstream ss;
+    if (aqm == RED)
+    {
+        ss << "red_" << str << "." << terminal;
+    }
+    else
+    {
+        ss << "codel_" << str << "_i" << interval << "_t" << target << "." << terminal;
+    }
+    return ss.str ();
+}
+
+void
+DoGnuPlot (AQM aqm, uint32_t interval, uint32_t target)
+{
+    Gnuplot cwndGnuplot (GetFormatedStr ("cwnd", "png", aqm, interval, target).c_str ());
     cwndGnuplot.SetTitle ("cwnd");
     cwndGnuplot.SetTerminal ("png");
     cwndGnuplot.AddDataset (cwndDataset);
-    std::ofstream cwndGnuplotFile ("cwnd.plt");
+    std::ofstream cwndGnuplotFile (GetFormatedStr ("cwnd", "plt", aqm, interval, target).c_str ());
     cwndGnuplot.GenerateOutput (cwndGnuplotFile);
     cwndGnuplotFile.close ();
 
-    Gnuplot queuediscGnuplot ("queue_disc.png");
+    Gnuplot queuediscGnuplot (GetFormatedStr ("queue_disc", "png", aqm, interval, target).c_str ());
     queuediscGnuplot.SetTitle ("queue_disc");
     queuediscGnuplot.SetTerminal ("png");
     queuediscGnuplot.AddDataset (queuediscDataset);
-    std::ofstream queuediscGnuplotFile ("queue_disc.plt");
+    std::ofstream queuediscGnuplotFile (GetFormatedStr ("queue_disc", "plt", aqm, interval, target).c_str ());
     queuediscGnuplot.GenerateOutput (queuediscGnuplotFile);
     queuediscGnuplotFile.close ();
 
-    Gnuplot throughputGnuplot ("throughput.png");
+    Gnuplot throughputGnuplot (GetFormatedStr ("throughput", "png", aqm, interval, target).c_str ());
     throughputGnuplot.SetTitle ("throughput");
     throughputGnuplot.SetTerminal ("png");
     throughputGnuplot.AddDataset (throughputDataset);
-    std::ofstream throughputGnuplotFile ("throughput.plt");
+    std::ofstream throughputGnuplotFile (GetFormatedStr ("throughput", "plt", aqm, interval, target).c_str ());
     throughputGnuplot.GenerateOutput (throughputGnuplotFile);
     throughputGnuplotFile.close ();
 }
@@ -89,9 +105,14 @@ int main (int argc, char *argv[])
     std::string aqmStr = "CODEL";
     AQM aqm;
 
+    uint32_t CODELInterval = 50;
+    uint32_t CODELTarget = 40;
+
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
     cmd.AddValue ("AQM", "AQM to use: RED, CODEL", aqmStr);
+    cmd.AddValue ("CODELInterval", "The interval parameter in CODEL", CODELInterval);
+    cmd.AddValue ("CODELTarget", "The target parameter in CODEL", CODELTarget);
     cmd.Parse (argc, argv);
 
     if (transportProt.compare ("Tcp") == 0)
@@ -135,8 +156,8 @@ int main (int argc, char *argv[])
     // CoDel Configuration
     Config::SetDefault ("ns3::CoDelQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
     Config::SetDefault ("ns3::CoDelQueueDisc::MaxPackets", UintegerValue (250));
-    Config::SetDefault ("ns3::CoDelQueueDisc::Target", TimeValue (MicroSeconds (40)));
-    Config::SetDefault ("ns3::CoDelQueueDisc::Interval", TimeValue (MicroSeconds (100)));
+    Config::SetDefault ("ns3::CoDelQueueDisc::Target", TimeValue (MicroSeconds (CODELTarget)));
+    Config::SetDefault ("ns3::CoDelQueueDisc::Interval", TimeValue (MicroSeconds (CODELInterval)));
 
     // RED Configuration
     Config::SetDefault ("ns3::RedQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
@@ -247,7 +268,7 @@ int main (int argc, char *argv[])
 
     Simulator::Destroy ();
 
-    DoGnuPlot ();
+    DoGnuPlot (aqm, CODELInterval, CODELTarget);
 
     return 0;
 }
