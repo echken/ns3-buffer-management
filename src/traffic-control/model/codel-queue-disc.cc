@@ -411,7 +411,7 @@ CoDelQueueDisc::DoDequeue (void)
                   {
                     NS_LOG_ERROR ("Cannot marking ECN");
                     ++m_states;
-                    return 0;
+                    return item;
                   }
                   markedItem = item;
               }
@@ -487,7 +487,7 @@ CoDelQueueDisc::DoDequeue (void)
               if (!MarkingECN (item))
               {
                   NS_LOG_ERROR ("Cannot marking ECN");
-                  return 0;
+                  return item;
               }
               markedItem = item;
           }
