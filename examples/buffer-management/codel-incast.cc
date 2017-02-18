@@ -9,7 +9,7 @@
 #include "ns3/gnuplot.h"
 
 #define BUFFER_SIZE 250     // 100 packets
-#define FLOW_SIZE 1000000   // 1000kb
+#define FLOW_SIZE 60000     // 60kb
 
 using namespace ns3;
 
@@ -100,19 +100,6 @@ CheckThroughput (Ptr<PacketSink> sink)
     throughputDataset.Add (Simulator::Now().GetSeconds (), currentPeriodRecvBytes * 8 / 0.001);
 }
 
-static void
-CongChange (TcpSocketState::TcpCongState_t oldCong, TcpSocketState::TcpCongState_t newCong)
-{
-    std::ofstream congRecord ("cong.txt", std::ios::out|std::ios::app);
-    congRecord << Simulator::Now ().GetSeconds () << " " << TcpSocketState::TcpCongStateName[newCong] << std::endl;
-}
-
-static void
-TraceCong ()
-{
-    Config::ConnectWithoutContext ("/NodeList/0/$ns3::TcpL4Protocol/SocketList/*/CongState", MakeCallback (&CongChange));
-}
-
 int main (int argc, char *argv[])
 {
 #if 1
@@ -122,12 +109,12 @@ int main (int argc, char *argv[])
     std::string transportProt = "DcTcp";
     std::string aqmStr = "CODEL";
     AQM aqm;
-    double endTime = 0.01;
+    double endTime = 0.05;
 
     uint32_t numOfSenders = 10;
 
     uint32_t CODELInterval = 50;
-    uint32_t CODELTarget = 40;
+    uint32_t CODELTarget = 20;
 
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
@@ -276,9 +263,7 @@ int main (int argc, char *argv[])
     throughputDataset.SetTitle ("throughput");
     throughputDataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
 
-    remove ("cong.txt");
     Simulator::Schedule (Seconds (0.00001), &TraceCwnd);
-    Simulator::Schedule (Seconds (0.00001), &TraceCong);
     Simulator::ScheduleNow (&CheckQueueDiscSize, switchToRecvQueueDiscContainer.Get (0));
     Simulator::ScheduleNow (&CheckThroughput, packetSink);
 
@@ -292,7 +277,7 @@ int main (int argc, char *argv[])
     Simulator::Stop (Seconds (endTime));
     Simulator::Run ();
 
-    flowMonitor->SerializeToXmlFile(GetFormatedStr ("flow_monitor", "txt", aqm, CODELInterval, CODELTarget, numOfSenders), true, true);
+    flowMonitor->SerializeToXmlFile(GetFormatedStr ("flow_monitor", "xml", aqm, CODELInterval, CODELTarget, numOfSenders), true, true);
 
     Simulator::Destroy ();
 
