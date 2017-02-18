@@ -5,6 +5,7 @@
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/traffic-control-module.h"
+#include "ns3/flow-monitor-module.h"
 #include "ns3/gnuplot.h"
 
 #define BUFFER_SIZE 250     // 100 packets
@@ -25,44 +26,44 @@ enum AQM {
 
 
 std::string
-GetFormatedStr (std::string str, std::string terminal, AQM aqm, uint32_t interval, uint32_t target)
+GetFormatedStr (std::string str, std::string terminal, AQM aqm, uint32_t interval, uint32_t target, uint32_t numOfSenders)
 {
     std::stringstream ss;
     if (aqm == RED)
     {
-        ss << "red_" << str << "." << terminal;
+        ss << "red_" << str << "_n" << numOfSenders << "." << terminal;
     }
     else
     {
-        ss << "codel_" << str << "_i" << interval << "_t" << target << "." << terminal;
+        ss << "codel_" << str << "_i" << interval << "_t" << target << "_n" << numOfSenders << "." << terminal;
     }
     return ss.str ();
 }
 
 void
-DoGnuPlot (AQM aqm, uint32_t interval, uint32_t target)
+DoGnuPlot (AQM aqm, uint32_t interval, uint32_t target, uint32_t numOfSenders)
 {
-    Gnuplot cwndGnuplot (GetFormatedStr ("cwnd", "png", aqm, interval, target).c_str ());
+    Gnuplot cwndGnuplot (GetFormatedStr ("cwnd", "png", aqm, interval, target, numOfSenders).c_str ());
     cwndGnuplot.SetTitle ("cwnd");
     cwndGnuplot.SetTerminal ("png");
     cwndGnuplot.AddDataset (cwndDataset);
-    std::ofstream cwndGnuplotFile (GetFormatedStr ("cwnd", "plt", aqm, interval, target).c_str ());
+    std::ofstream cwndGnuplotFile (GetFormatedStr ("cwnd", "plt", aqm, interval, target, numOfSenders).c_str ());
     cwndGnuplot.GenerateOutput (cwndGnuplotFile);
     cwndGnuplotFile.close ();
 
-    Gnuplot queuediscGnuplot (GetFormatedStr ("queue_disc", "png", aqm, interval, target).c_str ());
+    Gnuplot queuediscGnuplot (GetFormatedStr ("queue_disc", "png", aqm, interval, target, numOfSenders).c_str ());
     queuediscGnuplot.SetTitle ("queue_disc");
     queuediscGnuplot.SetTerminal ("png");
     queuediscGnuplot.AddDataset (queuediscDataset);
-    std::ofstream queuediscGnuplotFile (GetFormatedStr ("queue_disc", "plt", aqm, interval, target).c_str ());
+    std::ofstream queuediscGnuplotFile (GetFormatedStr ("queue_disc", "plt", aqm, interval, target, numOfSenders).c_str ());
     queuediscGnuplot.GenerateOutput (queuediscGnuplotFile);
     queuediscGnuplotFile.close ();
 
-    Gnuplot throughputGnuplot (GetFormatedStr ("throughput", "png", aqm, interval, target).c_str ());
+    Gnuplot throughputGnuplot (GetFormatedStr ("throughput", "png", aqm, interval, target, numOfSenders).c_str ());
     throughputGnuplot.SetTitle ("throughput");
     throughputGnuplot.SetTerminal ("png");
     throughputGnuplot.AddDataset (throughputDataset);
-    std::ofstream throughputGnuplotFile (GetFormatedStr ("throughput", "plt", aqm, interval, target).c_str ());
+    std::ofstream throughputGnuplotFile (GetFormatedStr ("throughput", "plt", aqm, interval, target, numOfSenders).c_str ());
     throughputGnuplot.GenerateOutput (throughputGnuplotFile);
     throughputGnuplotFile.close ();
 }
@@ -281,14 +282,21 @@ int main (int argc, char *argv[])
     Simulator::ScheduleNow (&CheckQueueDiscSize, switchToRecvQueueDiscContainer.Get (0));
     Simulator::ScheduleNow (&CheckThroughput, packetSink);
 
+    NS_LOG_INFO ("Enabling Flow Monitor");
+    Ptr<FlowMonitor> flowMonitor;
+    FlowMonitorHelper flowHelper;
+    flowMonitor = flowHelper.InstallAll();
+
     NS_LOG_INFO ("Run Simulations");
 
     Simulator::Stop (Seconds (endTime));
     Simulator::Run ();
 
+    flowMonitor->SerializeToXmlFile(GetFormatedStr ("flow_monitor", "txt", aqm, CODELInterval, CODELTarget, numOfSenders), true, true);
+
     Simulator::Destroy ();
 
-    DoGnuPlot (aqm, CODELInterval, CODELTarget);
+    DoGnuPlot (aqm, CODELInterval, CODELTarget, numOfSenders);
 
     return 0;
 }
