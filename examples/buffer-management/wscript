@@ -4,7 +4,9 @@ def build(bld):
     obj = bld.create_ns3_program('mq-codel',
                                  ['point-to-point', 'applications', 'internet'])
     obj.source = 'mq-codel.cc'
-    
     obj = bld.create_ns3_program('codel-dctcp',
                                  ['point-to-point', 'applications', 'internet'])
     obj.source = 'codel-dctcp.cc'
+    obj = bld.create_ns3_program('codel-incast',
+                                 ['point-to-point', 'applications', 'internet'])
+    obj.source = 'codel-incast.cc'

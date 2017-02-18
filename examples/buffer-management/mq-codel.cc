@@ -100,10 +100,12 @@ int main (int argc, char *argv[])
     std::string transportProt = "DcTcp";
     std::string packetSchedulingStr = "DWRR";
     PacketScheduling packetScheduling;
+    uint32_t numOfExtraSenders = 0;
 
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
     cmd.AddValue ("packetScheduling", "Packet scheduling algorithm to use: DWRR, WFQ", packetSchedulingStr);
+    cmd.AddValue ("numOfExtraSenders", "Extra senders", numOfExtraSenders);
     cmd.Parse (argc, argv);
 
     if (transportProt.compare ("Tcp") == 0)

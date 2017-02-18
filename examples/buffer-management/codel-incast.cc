@@ -7,9 +7,12 @@
 #include "ns3/traffic-control-module.h"
 #include "ns3/gnuplot.h"
 
+#define BUFFER_SIZE 250     // 100 packets
+#define FLOW_SIZE 1000000   // 1000kb
+
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("CoDelDcTcp");
+NS_LOG_COMPONENT_DEFINE ("CoDelIncast");
 
 Gnuplot2dDataset cwndDataset;
 Gnuplot2dDataset queuediscDataset;
@@ -112,15 +115,15 @@ TraceCong ()
 int main (int argc, char *argv[])
 {
 #if 1
-    LogComponentEnable ("CoDelDcTcp", LOG_LEVEL_INFO);
+    LogComponentEnable ("CoDelIncast", LOG_LEVEL_INFO);
 #endif
 
     std::string transportProt = "DcTcp";
     std::string aqmStr = "CODEL";
     AQM aqm;
-    double endTime = 0.2;
+    double endTime = 0.01;
 
-    uint32_t numOfExtraSenders = 0;
+    uint32_t numOfSenders = 10;
 
     uint32_t CODELInterval = 50;
     uint32_t CODELTarget = 40;
@@ -130,7 +133,7 @@ int main (int argc, char *argv[])
     cmd.AddValue ("AQM", "AQM to use: RED, CODEL", aqmStr);
     cmd.AddValue ("CODELInterval", "The interval parameter in CODEL", CODELInterval);
     cmd.AddValue ("CODELTarget", "The target parameter in CODEL", CODELTarget);
-    cmd.AddValue ("numOfExtraSenders", "Extra senders", numOfExtraSenders);
+    cmd.AddValue ("numOfSenders", "Concurrent senders", numOfSenders);
     cmd.Parse (argc, argv);
 
     if (transportProt.compare ("Tcp") == 0)
@@ -173,43 +176,36 @@ int main (int argc, char *argv[])
 
     // CoDel Configuration
     Config::SetDefault ("ns3::CoDelQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
-    Config::SetDefault ("ns3::CoDelQueueDisc::MaxPackets", UintegerValue (250));
+    Config::SetDefault ("ns3::CoDelQueueDisc::MaxPackets", UintegerValue (BUFFER_SIZE));
     Config::SetDefault ("ns3::CoDelQueueDisc::Target", TimeValue (MicroSeconds (CODELTarget)));
     Config::SetDefault ("ns3::CoDelQueueDisc::Interval", TimeValue (MicroSeconds (CODELInterval)));
 
     // RED Configuration
     Config::SetDefault ("ns3::RedQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
     Config::SetDefault ("ns3::RedQueueDisc::MeanPktSize", UintegerValue (1400));
-    Config::SetDefault ("ns3::RedQueueDisc::QueueLimit", UintegerValue (250));
+    Config::SetDefault ("ns3::RedQueueDisc::QueueLimit", UintegerValue (BUFFER_SIZE));
     Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (false));
 
-    NS_LOG_INFO ("Create nodes.");
-    NodeContainer c;
-    c.Create (4);
+    NS_LOG_INFO ("Setting up nodes.");
+    NodeContainer senders;
+    senders.Create (numOfSenders);
 
-    NodeContainer extraNodes;
-    extraNodes.Create (numOfExtraSenders);
+    NodeContainer receivers;
+    receivers.Create (1);
 
-    NS_LOG_INFO ("Install Internet stack");
+    NodeContainer switches;
+    switches.Create (1);
+
     InternetStackHelper internet;
-    internet.Install (c);
-    internet.Install (extraNodes);
+    internet.Install (senders);
+    internet.Install (switches);
+    internet.Install (receivers);
 
-    NodeContainer n0n2 = NodeContainer (c.Get (0), c.Get(2));
-    NodeContainer n1n2 = NodeContainer (c.Get (1), c.Get(2));
-    NodeContainer n2n3 = NodeContainer (c.Get (2), c.Get(3));
-
-    NS_LOG_INFO ("Install channel");
     PointToPointHelper p2p;
 
     p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
     p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(10)));
-
-    p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (10));
-
-    NetDeviceContainer d0d2 = p2p.Install (n0n2);
-    NetDeviceContainer d1d2 = p2p.Install (n1n2);
-    NetDeviceContainer d2d3 = p2p.Install (n2n3);
+    p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (5));
 
     TrafficControlHelper tc;
     if (aqm == CODEL)
@@ -222,29 +218,23 @@ int main (int argc, char *argv[])
                                                   "MaxTh", DoubleValue (65));
     }
 
-    QueueDiscContainer qd0d2 = tc.Install (d0d2);
-    QueueDiscContainer qd1d2 = tc.Install (d1d2);
-    QueueDiscContainer qd2d3 = tc.Install (d2d3);
-
     NS_LOG_INFO ("Assign IP address");
     Ipv4AddressHelper ipv4;
     ipv4.SetBase ("10.1.1.0", "255.255.255.0");
-    Ipv4InterfaceContainer i0i2 = ipv4.Assign (d0d2);
-    ipv4.SetBase ("10.1.2.0", "255.255.255.0");
-    Ipv4InterfaceContainer i1i2 = ipv4.Assign (d1d2);
-    ipv4.SetBase ("10.1.3.0", "255.255.255.0");
-    Ipv4InterfaceContainer i2i3 = ipv4.Assign (d2d3);
 
-    NS_LOG_INFO ("Setting up extra nodes");
-
-    ipv4.SetBase ("10.1.4.0", "255.255.255.0");
-    for (uint32_t num = 0; num < numOfExtraSenders; ++num)
+    for (uint32_t i = 0; i < numOfSenders; ++i)
     {
-        NodeContainer nC = NodeContainer (extraNodes.Get (num), c.Get (2));
-        NetDeviceContainer netC = p2p.Install (nC);
-        QueueDiscContainer qDC = tc.Install (netC);
-        Ipv4InterfaceContainer iC = ipv4.Assign (netC);
+        NodeContainer nodeContainer = NodeContainer (senders.Get (i), switches.Get (0));
+        NetDeviceContainer netDeviceContainer = p2p.Install (nodeContainer);
+        QueueDiscContainer queuediscDataset = tc.Install (netDeviceContainer);
+        Ipv4InterfaceContainer ipv4InterfaceContainer = ipv4.Assign (netDeviceContainer);
+        ipv4.NewNetwork ();
     }
+
+    NodeContainer switchToRecvNodeContainer = NodeContainer (switches.Get (0), receivers.Get (0));
+    NetDeviceContainer switchToRecvNetDeviceContainer = p2p.Install (switchToRecvNodeContainer);
+    QueueDiscContainer switchToRecvQueueDiscContainer = tc.Install (switchToRecvNetDeviceContainer);
+    Ipv4InterfaceContainer switchToRecvIpv4Container = ipv4.Assign (switchToRecvNetDeviceContainer);
 
     NS_LOG_INFO ("Setting up routing table");
 
@@ -252,51 +242,24 @@ int main (int argc, char *argv[])
 
     NS_LOG_INFO ("Install TCP based application");
 
-    uint16_t port1 = 8080;
-    uint16_t port2 = 8081;
+    uint16_t basePort = 8080;
+    Ptr<PacketSink> packetSink;
 
-    BulkSendHelper source1 ("ns3::TcpSocketFactory", InetSocketAddress (i2i3.GetAddress (1), port1));
-    source1.SetAttribute ("MaxBytes", UintegerValue (0));
-    source1.SetAttribute ("SendSize", UintegerValue (1400));
-    ApplicationContainer sourceApps1 = source1.Install (c.Get (0));
-    sourceApps1.Start (Seconds (0.0));
-    sourceApps1.Stop (Seconds (endTime));
-
-    PacketSinkHelper sink1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), port1));
-    ApplicationContainer sinkApp1 = sink1.Install (c.Get (3));
-    sinkApp1.Start (Seconds (0.0));
-    sinkApp1.Stop (Seconds (endTime));
-
-    // Change to use on-off application
-    OnOffHelper source2 ("ns3::TcpSocketFactory", InetSocketAddress (i2i3.GetAddress (1), port2));
-    source2.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.005]"));
-    source2.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.01]"));
-    source2.SetAttribute ("DataRate", StringValue ("10Gbps"));
-    source2.SetAttribute ("PacketSize", UintegerValue (1400));
-    ApplicationContainer sourceApps2 = source2.Install (c.Get (1));
-    sourceApps2.Start (Seconds (0.0));
-    sourceApps2.Stop (Seconds (endTime));
-
-    PacketSinkHelper sink2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), port2));
-    ApplicationContainer sinkApp2 = sink2.Install (c.Get (3));
-    sinkApp2.Start (Seconds (0.0));
-    sinkApp2.Stop (Seconds (endTime));
-
-    uint16_t port3 = 9000;
-
-    for (uint32_t num = 0; num < numOfExtraSenders; num ++)
+    for (uint32_t i = 0; i < numOfSenders; ++i)
     {
-        OnOffHelper source ("ns3::TcpSocketFactory", InetSocketAddress (i2i3.GetAddress (1), port3 + num));
-        source.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.005]"));
-        source.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.01]"));
-        source.SetAttribute ("DataRate", StringValue ("10Gbps"));
-        source.SetAttribute ("PacketSize", UintegerValue (1400));
-        ApplicationContainer sourceApps = source.Install (extraNodes.Get (num));
+        BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort + i));
+        source.SetAttribute ("MaxBytes", UintegerValue (FLOW_SIZE));
+        source.SetAttribute ("SendSize", UintegerValue (1400));
+        ApplicationContainer sourceApps = source.Install (senders.Get (i));
         sourceApps.Start (Seconds (0.0));
         sourceApps.Stop (Seconds (endTime));
 
-        PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), port3 + num));
-        ApplicationContainer sinkApp = sink.Install (c.Get (3));
+        PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), basePort + i));
+        ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer. Get (1));
+        if (i == 0)
+        {
+            packetSink = sinkApp.Get (0)->GetObject<PacketSink> ();
+        }
         sinkApp.Start (Seconds (0.0));
         sinkApp.Stop (Seconds (endTime));
     }
@@ -315,12 +278,12 @@ int main (int argc, char *argv[])
     remove ("cong.txt");
     Simulator::Schedule (Seconds (0.00001), &TraceCwnd);
     Simulator::Schedule (Seconds (0.00001), &TraceCong);
-    Simulator::ScheduleNow (&CheckQueueDiscSize, qd2d3.Get (0));
-    Simulator::ScheduleNow (&CheckThroughput, sinkApp1.Get (0)->GetObject<PacketSink> ());
+    Simulator::ScheduleNow (&CheckQueueDiscSize, switchToRecvQueueDiscContainer.Get (0));
+    Simulator::ScheduleNow (&CheckThroughput, packetSink);
 
     NS_LOG_INFO ("Run Simulations");
 
-    Simulator::Stop (Seconds (0.2));
+    Simulator::Stop (Seconds (endTime));
     Simulator::Run ();
 
     Simulator::Destroy ();
