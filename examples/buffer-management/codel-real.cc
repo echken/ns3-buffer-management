@@ -20,9 +20,7 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("CoDelIncast");
 
-Gnuplot2dDataset cwndDataset;
 Gnuplot2dDataset queuediscDataset;
-Gnuplot2dDataset throughputDataset;
 
 enum AQM {
     RED,
@@ -62,14 +60,6 @@ GetFormatedStr (std::string str, std::string terminal, AQM aqm, double load, uin
 void
 DoGnuPlot (AQM aqm, double load, uint32_t interval, uint32_t target, uint32_t numOfSenders)
 {
-    Gnuplot cwndGnuplot (GetFormatedStr ("cwnd", "png", aqm, load, interval, target, numOfSenders).c_str ());
-    cwndGnuplot.SetTitle ("cwnd");
-    cwndGnuplot.SetTerminal ("png");
-    cwndGnuplot.AddDataset (cwndDataset);
-    std::ofstream cwndGnuplotFile (GetFormatedStr ("cwnd", "plt", aqm, load, interval, target, numOfSenders).c_str ());
-    cwndGnuplot.GenerateOutput (cwndGnuplotFile);
-    cwndGnuplotFile.close ();
-
     Gnuplot queuediscGnuplot (GetFormatedStr ("queue_disc", "png", aqm, load, interval, target, numOfSenders).c_str ());
     queuediscGnuplot.SetTitle ("queue_disc");
     queuediscGnuplot.SetTerminal ("png");
@@ -77,26 +67,6 @@ DoGnuPlot (AQM aqm, double load, uint32_t interval, uint32_t target, uint32_t nu
     std::ofstream queuediscGnuplotFile (GetFormatedStr ("queue_disc", "plt", aqm, load, interval, target, numOfSenders).c_str ());
     queuediscGnuplot.GenerateOutput (queuediscGnuplotFile);
     queuediscGnuplotFile.close ();
-
-    Gnuplot throughputGnuplot (GetFormatedStr ("throughput", "png", aqm, load, interval, target, numOfSenders).c_str ());
-    throughputGnuplot.SetTitle ("throughput");
-    throughputGnuplot.SetTerminal ("png");
-    throughputGnuplot.AddDataset (throughputDataset);
-    std::ofstream throughputGnuplotFile (GetFormatedStr ("throughput", "plt", aqm, load, interval, target, numOfSenders).c_str ());
-    throughputGnuplot.GenerateOutput (throughputGnuplotFile);
-    throughputGnuplotFile.close ();
-}
-
-void
-CwndChange (uint32_t oldCwnd, uint32_t newCwnd)
-{
-    cwndDataset.Add (Simulator::Now ().GetSeconds (), newCwnd);
-}
-
-void
-TraceCwnd ()
-{
-    Config::ConnectWithoutContext ("/NodeList/0/$ns3::TcpL4Protocol/SocketList/*/CongestionWindow", MakeCallback (&CwndChange));
 }
 
 void
@@ -105,18 +75,6 @@ CheckQueueDiscSize (Ptr<QueueDisc> queue)
     uint32_t qSize = queue->GetNPackets ();
     queuediscDataset.Add (Simulator::Now ().GetSeconds (), qSize);
     Simulator::Schedule (Seconds (0.00001), &CheckQueueDiscSize, queue);
-}
-
-uint32_t accumRecvBytes;
-
-void
-CheckThroughput (Ptr<PacketSink> sink)
-{
-    uint32_t totalRecvBytes = sink->GetTotalRx ();
-    uint32_t currentPeriodRecvBytes = totalRecvBytes - accumRecvBytes;
-    accumRecvBytes = totalRecvBytes;
-    Simulator::Schedule (Seconds (0.001), &CheckThroughput, sink);
-    throughputDataset.Add (Simulator::Now().GetSeconds (), currentPeriodRecvBytes * 8 / 0.001);
 }
 
 int main (int argc, char *argv[])
@@ -128,9 +86,9 @@ int main (int argc, char *argv[])
     std::string transportProt = "DcTcp";
     std::string aqmStr = "CODEL";
     AQM aqm;
-    double endTime = 0.05;
+    double endTime = 10.0;
 
-    uint32_t numOfSenders = 10;
+    uint32_t numOfSenders = 8;
 
     uint32_t CODELInterval = 50;
     uint32_t CODELTarget = 20;
@@ -139,6 +97,7 @@ int main (int argc, char *argv[])
     std::string cdfFileName = "";
 
     unsigned randomSeed = 0;
+    uint32_t flowNum = 1000;
 
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
@@ -150,6 +109,7 @@ int main (int argc, char *argv[])
     cmd.AddValue ("cdfFileName", "File name for flow distribution", cdfFileName);
     cmd.AddValue ("load", "Load of the network, 0.0 - 1.0", load);
     cmd.AddValue ("randomSeed", "Random seed, 0 for random generated", randomSeed);
+    cmd.AddValue ("flowNum", "Total flow num", flowNum);
 
     cmd.Parse (argc, argv);
 
@@ -279,12 +239,12 @@ int main (int argc, char *argv[])
     NS_LOG_INFO ("Install TCP based application");
 
     uint16_t basePort = 8080;
-    Ptr<PacketSink> packetSink;
+    uint32_t totalFlow = 0;
 
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
         double startTime = 0.0 + poission_gen_interval (requestRate);
-        while (startTime < endTime)
+        while (startTime < endTime && totalFlow < flowNum)
         {
             uint32_t flowSize = gen_random_cdf (cdfTable);
             BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
@@ -295,32 +255,24 @@ int main (int argc, char *argv[])
             sourceApps.Stop (Seconds (endTime * 2));
 
             PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), basePort));
-            ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer. Get (1));
-            if (i == 0)
-            {
-                packetSink = sinkApp.Get (0)->GetObject<PacketSink> ();
-            }
+            ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer.Get (1));
             sinkApp.Start (Seconds (0.0));
             sinkApp.Stop (Seconds (endTime * 2));
+
+            ++totalFlow;
             ++basePort;
             startTime += poission_gen_interval (requestRate);
         }
     }
 
-    NS_LOG_INFO ("Start Tracing System");
+    NS_LOG_INFO ("Generated Flow Num: " << totalFlow);
 
-    cwndDataset.SetTitle ("cwnd");
-    cwndDataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+    NS_LOG_INFO ("Start Tracing System");
 
     queuediscDataset.SetTitle ("queue_disc");
     queuediscDataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
 
-    throughputDataset.SetTitle ("throughput");
-    throughputDataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
-
-    Simulator::Schedule (Seconds (0.00001), &TraceCwnd);
     Simulator::ScheduleNow (&CheckQueueDiscSize, switchToRecvQueueDiscContainer.Get (0));
-    Simulator::ScheduleNow (&CheckThroughput, packetSink);
 
     NS_LOG_INFO ("Enabling Flow Monitor");
     Ptr<FlowMonitor> flowMonitor;
