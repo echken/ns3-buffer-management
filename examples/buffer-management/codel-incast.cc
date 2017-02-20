@@ -9,7 +9,6 @@
 #include "ns3/gnuplot.h"
 
 #define BUFFER_SIZE 250     // 100 packets
-#define FLOW_SIZE 60000     // 60kb
 
 using namespace ns3;
 
@@ -116,12 +115,17 @@ int main (int argc, char *argv[])
     uint32_t CODELInterval = 50;
     uint32_t CODELTarget = 20;
 
+    uint32_t flowSize = 60000;     // 60kb
+    std::string cdfFileName = "";
+
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
     cmd.AddValue ("AQM", "AQM to use: RED, CODEL", aqmStr);
     cmd.AddValue ("CODELInterval", "The interval parameter in CODEL", CODELInterval);
     cmd.AddValue ("CODELTarget", "The target parameter in CODEL", CODELTarget);
     cmd.AddValue ("numOfSenders", "Concurrent senders", numOfSenders);
+    cmd.AddValue ("flowSize", "The size of sent flow", flowSize);
+    cmd.AddValue ("endTime", "Simulation end time", endTime);
     cmd.Parse (argc, argv);
 
     if (transportProt.compare ("Tcp") == 0)
@@ -236,7 +240,7 @@ int main (int argc, char *argv[])
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
         BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort + i));
-        source.SetAttribute ("MaxBytes", UintegerValue (FLOW_SIZE));
+        source.SetAttribute ("MaxBytes", UintegerValue (flowSize));
         source.SetAttribute ("SendSize", UintegerValue (1400));
         ApplicationContainer sourceApps = source.Install (senders.Get (i));
         sourceApps.Start (Seconds (0.0));
