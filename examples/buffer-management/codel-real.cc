@@ -90,8 +90,8 @@ int main (int argc, char *argv[])
 
     uint32_t numOfSenders = 8;
 
-    uint32_t CODELInterval = 50;
-    uint32_t CODELTarget = 20;
+    uint32_t CODELInterval = 100;
+    uint32_t CODELTarget = 10;
 
     double load = 0.1;
     std::string cdfFileName = "";
@@ -181,7 +181,7 @@ int main (int argc, char *argv[])
     PointToPointHelper p2p;
 
     p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
-    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(10)));
+    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(20)));
     p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (5));
 
     TrafficControlHelper tc;
