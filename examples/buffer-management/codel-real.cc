@@ -263,8 +263,8 @@ int main (int argc, char *argv[])
     load_cdf (cdfTable, cdfFileName.c_str ());
 
     NS_LOG_INFO ("Calculating request rate");
-    double requestRate = load * 10e9 / (8 * avg_cdf (cdfTable));
-    NS_LOG_INFO ("Average request rate: " << requestRate << " per second");
+    double requestRate = load * 10e9 / (8 * avg_cdf (cdfTable)) / numOfSenders;
+    NS_LOG_INFO ("Average request rate: " << requestRate << " per second per sender");
 
     NS_LOG_INFO ("Initialize random seed: " << randomSeed);
     if (randomSeed == 0)
