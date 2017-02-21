@@ -239,10 +239,10 @@ int main (int argc, char *argv[])
     NS_LOG_INFO ("Install TCP based application");
 
     uint16_t basePort = 8080;
-    uint32_t totalFlow = 0;
 
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
+        uint32_t totalFlow = 0;
         double startTime = 0.0 + poission_gen_interval (requestRate);
         while (startTime < endTime && totalFlow < (flowNum / numOfSenders))
         {
@@ -264,8 +264,6 @@ int main (int argc, char *argv[])
             startTime += poission_gen_interval (requestRate);
         }
     }
-
-    NS_LOG_INFO ("Generated Flow Num: " << totalFlow);
 
     NS_LOG_INFO ("Start Tracing System");
 
