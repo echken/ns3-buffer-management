@@ -244,7 +244,7 @@ int main (int argc, char *argv[])
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
         double startTime = 0.0 + poission_gen_interval (requestRate);
-        while (startTime < endTime && totalFlow < flowNum)
+        while (startTime < endTime && totalFlow < (flowNum / numOfSenders))
         {
             uint32_t flowSize = gen_random_cdf (cdfTable);
             BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
