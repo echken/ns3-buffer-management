@@ -8,7 +8,9 @@
 #include "ns3/flow-monitor-module.h"
 #include "ns3/gnuplot.h"
 
-#define BUFFER_SIZE 250     // 100 packets
+#define BUFFER_SIZE 120     // 120 packets
+#define FLOW_SIZE_MIN 3000  // 3k
+#define FLOW_SIZE_MAX 60000 // 60k
 
 using namespace ns3;
 
@@ -23,6 +25,11 @@ enum AQM {
     CODEL
 };
 
+template<typename T>  T
+rand_range (T min, T max)
+{
+    return min + ((double)max - min) * rand () / RAND_MAX;
+}
 
 std::string
 GetFormatedStr (std::string str, std::string terminal, AQM aqm, uint32_t interval, uint32_t target, uint32_t numOfSenders)
@@ -115,16 +122,12 @@ int main (int argc, char *argv[])
     uint32_t CODELInterval = 50;
     uint32_t CODELTarget = 20;
 
-    uint32_t flowSize = 60000;     // 60kb
-    std::string cdfFileName = "";
-
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
     cmd.AddValue ("AQM", "AQM to use: RED, CODEL", aqmStr);
     cmd.AddValue ("CODELInterval", "The interval parameter in CODEL", CODELInterval);
     cmd.AddValue ("CODELTarget", "The target parameter in CODEL", CODELTarget);
     cmd.AddValue ("numOfSenders", "Concurrent senders", numOfSenders);
-    cmd.AddValue ("flowSize", "The size of sent flow", flowSize);
     cmd.AddValue ("endTime", "Simulation end time", endTime);
     cmd.Parse (argc, argv);
 
@@ -206,8 +209,8 @@ int main (int argc, char *argv[])
     }
     else
     {
-        tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (65),
-                                                  "MaxTh", DoubleValue (65));
+        tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (30),
+                                                  "MaxTh", DoubleValue (30));
     }
 
     NS_LOG_INFO ("Assign IP address");
@@ -240,7 +243,7 @@ int main (int argc, char *argv[])
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
         BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort + i));
-        source.SetAttribute ("MaxBytes", UintegerValue (flowSize));
+        source.SetAttribute ("MaxBytes", UintegerValue (rand_range (FLOW_SIZE_MIN, FLOW_SIZE_MAX)));
         source.SetAttribute ("SendSize", UintegerValue (1400));
         ApplicationContainer sourceApps = source.Install (senders.Get (i));
         sourceApps.Start (Seconds (0.0));

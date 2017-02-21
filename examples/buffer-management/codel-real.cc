@@ -181,7 +181,7 @@ int main (int argc, char *argv[])
     PointToPointHelper p2p;
 
     p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
-    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(20)));
+    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(10)));
     p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (5));
 
     TrafficControlHelper tc;
