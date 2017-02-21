@@ -119,8 +119,8 @@ int main (int argc, char *argv[])
 
     uint32_t numOfSenders = 10;
 
-    uint32_t CODELInterval = 50;
-    uint32_t CODELTarget = 20;
+    uint32_t CODELInterval = 150;
+    uint32_t CODELTarget = 10;
 
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);

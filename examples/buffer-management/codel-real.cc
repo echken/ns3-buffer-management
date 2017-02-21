@@ -90,7 +90,7 @@ int main (int argc, char *argv[])
 
     uint32_t numOfSenders = 8;
 
-    uint32_t CODELInterval = 50;
+    uint32_t CODELInterval = 150;
     uint32_t CODELTarget = 10;
 
     double load = 0.1;
