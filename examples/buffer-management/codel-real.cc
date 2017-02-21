@@ -14,7 +14,7 @@ extern "C"
 #include "cdf.h"
 }
 
-#define BUFFER_SIZE 250     // 100 packets
+#define BUFFER_SIZE 120     // 120 packets
 
 using namespace ns3;
 
@@ -231,8 +231,8 @@ int main (int argc, char *argv[])
     }
     else
     {
-        tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (65),
-                                                  "MaxTh", DoubleValue (65));
+        tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (30),
+                                                  "MaxTh", DoubleValue (30));
     }
 
     NS_LOG_INFO ("Assign IP address");
