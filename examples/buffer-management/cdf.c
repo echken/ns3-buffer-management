@@ -101,7 +101,6 @@ double avg_cdf(struct cdf_table *table)
         }
         avg += (value * prob);
     }
-
     return avg;
 }
 
