@@ -42,28 +42,28 @@ rand_range (T min, T max)
 }
 
 std::string
-GetFormatedStr (std::string str, std::string terminal, AQM aqm, double load, uint32_t interval, uint32_t target, uint32_t redThreshold, uint32_t numOfSenders)
+GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, double load, uint32_t interval, uint32_t target, uint32_t redThreshold, uint32_t numOfSenders)
 {
     std::stringstream ss;
     if (aqm == RED)
     {
-        ss << "vr_s_red_" << str << "_t" << redThreshold << "_n" << numOfSenders << "_l" << load << "." << terminal;
+        ss << id << "_vr_s_red_" << str << "_t" << redThreshold << "_n" << numOfSenders << "_l" << load << "." << terminal;
     }
     else
     {
-        ss << "vr_s_codel_" << str << "_i" << interval << "_t" << target << "_n" << numOfSenders << "_l" << load  << "." << terminal;
+        ss << id << "_vr_s_codel_" << str << "_i" << interval << "_t" << target << "_n" << numOfSenders << "_l" << load  << "." << terminal;
     }
     return ss.str ();
 }
 
 void
-DoGnuPlot (AQM aqm, double load, uint32_t interval, uint32_t target, uint32_t redThreshold, uint32_t numOfSenders)
+DoGnuPlot (std::string id, AQM aqm, double load, uint32_t interval, uint32_t target, uint32_t redThreshold, uint32_t numOfSenders)
 {
-    Gnuplot queuediscGnuplot (GetFormatedStr ("queue_disc", "png", aqm, load, interval, target, redThreshold, numOfSenders).c_str ());
+    Gnuplot queuediscGnuplot (GetFormatedStr (id, "queue_disc", "png", aqm, load, interval, target, redThreshold, numOfSenders).c_str ());
     queuediscGnuplot.SetTitle ("queue_disc");
     queuediscGnuplot.SetTerminal ("png");
     queuediscGnuplot.AddDataset (queuediscDataset);
-    std::ofstream queuediscGnuplotFile (GetFormatedStr ("queue_disc", "plt", aqm, load, interval, target, redThreshold, numOfSenders).c_str ());
+    std::ofstream queuediscGnuplotFile (GetFormatedStr (id, "queue_disc", "plt", aqm, load, interval, target, redThreshold, numOfSenders).c_str ());
     queuediscGnuplot.GenerateOutput (queuediscGnuplotFile);
     queuediscGnuplotFile.close ();
 }
@@ -90,6 +90,8 @@ int main (int argc, char *argv[])
     LogComponentEnable ("VariedRTT", LOG_LEVEL_INFO);
 #endif
 
+    std::string id = "";
+
     std::string transportProt = "DcTcp";
     std::string aqmStr = "CODEL";
     AQM aqm;
@@ -112,6 +114,7 @@ int main (int argc, char *argv[])
     uint32_t bufferSize = 120;
 
     CommandLine cmd;
+    cmd.AddValue ("id", "The running ID", id);
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
     cmd.AddValue ("AQM", "AQM to use: RED, CODEL", aqmStr);
     cmd.AddValue ("CODELInterval", "The interval parameter in CODEL", CODELInterval);
@@ -319,13 +322,13 @@ int main (int argc, char *argv[])
     Simulator::Stop (Seconds (simEndTime));
     Simulator::Run ();
 
-    flowMonitor->SerializeToXmlFile(GetFormatedStr ("flow_monitor", "xml", aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders), true, true);
-    linkMonitor->OutputToFile (GetFormatedStr ("link_monitor", "xml", aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders), &DefaultFormat);
+    flowMonitor->SerializeToXmlFile(GetFormatedStr (id, "flow_monitor", "xml", aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders), true, true);
+    linkMonitor->OutputToFile (GetFormatedStr (id, "link_monitor", "xml", aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders), &DefaultFormat);
 
     Simulator::Destroy ();
     free_cdf (cdfTable);
 
-    DoGnuPlot (aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders);
+    DoGnuPlot (id, aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders);
 
     return 0;
 }
