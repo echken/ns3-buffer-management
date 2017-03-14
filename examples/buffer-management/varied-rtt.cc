@@ -56,7 +56,7 @@ GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, 
     }
     else if (aqm == XXX)
     {
-        ss << id << "_vr_s_xxx" << str << "_int" << redThreshold << "_i" << interval << "_t" << target << "_n" <<numOfSenders << "_l" << load << "." << terminal;
+        ss << id << "_vr_s_xxx_" << str << "_int" << redThreshold << "_i" << interval << "_t" << target << "_n" <<numOfSenders << "_l" << load << "." << terminal;
     }
     return ss.str ();
 }
