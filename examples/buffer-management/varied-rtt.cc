@@ -23,7 +23,8 @@ Gnuplot2dDataset queuediscDataset;
 
 enum AQM {
     RED,
-    CODEL
+    CODEL,
+    XXX
 };
 
 // Port from Traffic Generator // Acknowledged to https://github.com/HKUST-SING/TrafficGenerator/blob/master/src/common/common.c
@@ -49,9 +50,13 @@ GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, 
     {
         ss << id << "_vr_s_red_" << str << "_t" << redThreshold << "_n" << numOfSenders << "_l" << load << "." << terminal;
     }
-    else
+    else if (aqm == CODEL)
     {
         ss << id << "_vr_s_codel_" << str << "_i" << interval << "_t" << target << "_n" << numOfSenders << "_l" << load  << "." << terminal;
+    }
+    else if (aqm == XXX)
+    {
+        ss << id << "_vr_s_xxx" << str << "_int" << redThreshold << "_i" << interval << "_t" << target << "_n" <<numOfSenders << "_l" << load << "." << terminal;
     }
     return ss.str ();
 }
@@ -113,6 +118,10 @@ int main (int argc, char *argv[])
     uint32_t redMarkingThreshold = 30;
     uint32_t bufferSize = 120;
 
+    uint32_t xxxInterval = 150;
+    uint32_t xxxTarget = 10;
+    uint32_t xxxMarkingThreshold = 30;
+
     CommandLine cmd;
     cmd.AddValue ("id", "The running ID", id);
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
@@ -129,6 +138,10 @@ int main (int argc, char *argv[])
     cmd.AddValue ("flowNum", "Total flow num", flowNum);
     cmd.AddValue ("redMarkingThreshold", "The RED marking threshold", redMarkingThreshold);
     cmd.AddValue ("bufferSize", "The buffer size", bufferSize);
+
+    cmd.AddValue ("XXXInterval", "The persistent interval for XXX", xxxInterval);
+    cmd.AddValue ("XXXTarget", "The persistent target for XXX", xxxTarget);
+    cmd.AddValue ("XXXMarkingThreshold", "The instantaneous marking threshold for XXX", xxxMarkingThreshold);
 
     cmd.Parse (argc, argv);
 
@@ -153,6 +166,13 @@ int main (int argc, char *argv[])
     else if (aqmStr.compare ("CODEL") == 0)
     {
         aqm = CODEL;
+    }
+    else if (aqmStr.compare ("XXX") == 0)
+    {
+        aqm = XXX;
+        redMarkingThreshold = xxxMarkingThreshold;
+        CODELTarget = xxxTarget;
+        CODELInterval = xxxInterval;
     }
     else
     {
@@ -181,6 +201,13 @@ int main (int argc, char *argv[])
     Config::SetDefault ("ns3::RedQueueDisc::MeanPktSize", UintegerValue (1400));
     Config::SetDefault ("ns3::RedQueueDisc::QueueLimit", UintegerValue (bufferSize));
     Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (false));
+
+    // XXX Configuration
+    Config::SetDefault ("ns3::XXXQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
+    Config::SetDefault ("ns3::XXXQueueDisc::MaxPackets", UintegerValue (bufferSize));
+    Config::SetDefault ("ns3::XXXQueueDisc::InstantaneousMarkingThreshold", UintegerValue (xxxMarkingThreshold));
+    Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingTarget", TimeValue (MicroSeconds (xxxTarget)));
+    Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingInterval", TimeValue (MicroSeconds (xxxInterval)));
 
     NS_LOG_INFO ("Loading RTT CDF");
     struct cdf_table *rttCdfTable = new cdf_table ();
@@ -213,10 +240,14 @@ int main (int argc, char *argv[])
     {
         tc.SetRootQueueDisc ("ns3::CoDelQueueDisc");
     }
-    else
+    else if (aqm == RED)
     {
         tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (redMarkingThreshold),
                                                   "MaxTh", DoubleValue (redMarkingThreshold));
+    }
+    else
+    {
+        tc.SetRootQueueDisc ("ns3::XXXQueueDisc");
     }
 
     NS_LOG_INFO ("Assign IP address");

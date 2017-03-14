@@ -4,6 +4,7 @@
 #include "xxx-queue-disc.h"
 #include "ns3/drop-tail-queue.h"
 #include "ns3/ipv4-queue-disc-item.h"
+#include "ns3/string.h"
 
 #define DEFAULT_XXX_LIMIT 100
 
@@ -12,6 +13,58 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("XXXQueueDisc");
 
 NS_OBJECT_ENSURE_REGISTERED (XXXQueueDisc);
+
+XXXTimestampTag::XXXTimestampTag ()
+    : m_creationTime (Simulator::Now ().GetTimeStep ())
+{
+
+}
+
+TypeId
+XXXTimestampTag::GetTypeId (void)
+{
+    static TypeId tid = TypeId ("ns3::XXXTimestampTag")
+        .SetParent<Tag> ()
+        .AddConstructor<XXXTimestampTag> ()
+    ;
+    return tid;
+}
+
+TypeId
+XXXTimestampTag::GetInstanceTypeId (void) const
+{
+    return GetTypeId ();
+}
+
+uint32_t
+XXXTimestampTag::GetSerializedSize (void) const
+{
+    return sizeof (uint64_t);
+}
+
+void
+XXXTimestampTag::Serialize (TagBuffer i) const
+{
+    i.WriteU64 (m_creationTime);
+}
+
+void
+XXXTimestampTag::Deserialize (TagBuffer i)
+{
+    m_creationTime = i.ReadU64 ();
+}
+
+void
+XXXTimestampTag::Print (std::ostream &os) const
+{
+    os << "CreationTime=" << m_creationTime;
+}
+
+Time
+XXXTimestampTag::GetTxTime (void) const
+{
+    return TimeStep (m_creationTime);
+}
 
 TypeId
 XXXQueueDisc::GetTypeId (void)
@@ -37,11 +90,23 @@ XXXQueueDisc::GetTypeId (void)
               UintegerValue (DEFAULT_XXX_LIMIT / 4),
               MakeUintegerAccessor (&XXXQueueDisc::m_instantMarkingThreshold),
               MakeUintegerChecker<uint32_t> ())
+      .AddAttribute ("PersistentMarkingInterval", "The persistent marking interval",
+              StringValue ("100us"),
+              MakeTimeAccessor (&XXXQueueDisc::m_persistentMarkingInterval),
+              MakeTimeChecker ())
+      .AddAttribute ("PersistentMarkingTarget", "The persistent marking threshold to control queue delay",
+              StringValue ("10us"),
+              MakeTimeAccessor (&XXXQueueDisc::m_persistentMarkingTarget),
+              MakeTimeChecker ())
     ;
     return tid;
 }
 
 XXXQueueDisc::XXXQueueDisc ()
+    : m_firstAboveTime (0),
+      m_marking (false),
+      m_markNext (0),
+      m_markCount (0)
 {
     NS_LOG_FUNCTION (this);
 }
@@ -70,6 +135,8 @@ XXXQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
     }
 
     //TODO Add Time Tag
+    XXXTimestampTag tag;
+    p->AddPacketTag (tag);
 
     GetInternalQueue (0)->Enqueue (item);
 
@@ -80,6 +147,8 @@ Ptr<QueueDiscItem>
 XXXQueueDisc::DoDequeue (void)
 {
     NS_LOG_FUNCTION (this);
+
+    Time now = Simulator::Now ();
 
     bool instantaneousMarking = false;
     bool persistentMarking = false;
@@ -97,6 +166,34 @@ XXXQueueDisc::DoDequeue (void)
     }
 
     Ptr<QueueDiscItem> item = StaticCast<QueueDiscItem> (GetInternalQueue (0)->Dequeue ());
+    Ptr<Packet> p = item->GetPacket ();
+
+    //Second we check the persistent marking
+    bool okToMark = OkToMark (p, now);
+    if (m_marking)
+    {
+        if (!okToMark)
+        {
+            m_marking = false;
+        }
+        else if (now >= m_markNext)
+        {
+            m_markCount ++;
+            m_markNext = now + XXXQueueDisc::ControlLaw ();
+            persistentMarking = true;
+        }
+    }
+    else
+    {
+        if (okToMark)
+        {
+            m_marking = true;
+            m_markCount = 1;
+            m_markNext = now + m_persistentMarkingInterval;
+            persistentMarking = true;
+        }
+
+    }
 
     if (instantaneousMarking || persistentMarking)
     {
@@ -114,8 +211,14 @@ Ptr<const QueueDiscItem>
 XXXQueueDisc::DoPeek (void) const
 {
     NS_LOG_FUNCTION (this);
+    if (GetInternalQueue (0)->IsEmpty ())
+    {
+        return NULL;
+    }
 
-    return NULL;
+    Ptr<const QueueDiscItem> item = StaticCast<const QueueDiscItem> (GetInternalQueue (0)->Peek ());
+
+    return item;
 }
 
 bool
@@ -170,6 +273,46 @@ XXXQueueDisc::MarkingECN (Ptr<QueueDiscItem> item)
     header.SetEcn(Ipv4Header::ECN_CE);
     ipv4Item->SetHeader(header);
     return true;
+}
+
+bool
+XXXQueueDisc::OkToMark (Ptr<Packet> p, Time now)
+{
+    XXXTimestampTag tag;
+    bool found = p->RemovePacketTag (tag);
+    if (!found)
+    {
+        NS_LOG_ERROR ("Cannot find the XXX Timestamp Tag");
+        return false;
+    }
+
+    Time sojournTime = now - tag.GetTxTime ();
+
+    if (sojournTime < m_persistentMarkingTarget)
+    {
+        m_firstAboveTime = Time (0);
+        return false;
+    }
+    else
+    {
+        if (m_firstAboveTime == Time (0))
+        {
+            m_firstAboveTime = now + m_persistentMarkingInterval;
+        }
+        else if (now > m_firstAboveTime)
+        {
+            return true;
+        }
+        return false;
+    }
+}
+
+Time
+XXXQueueDisc::ControlLaw (void)
+{
+    uint64_t timeStep = m_persistentMarkingInterval.GetTimeStep ();
+    timeStep = static_cast<uint64_t> (timeStep / sqrt (static_cast<double> (m_markCount)));
+    return TimeStep (timeStep);
 }
 
 }
