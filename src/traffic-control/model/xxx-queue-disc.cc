@@ -200,7 +200,8 @@ XXXQueueDisc::DoDequeue (void)
         if (!XXXQueueDisc::MarkingECN (item))
         {
             NS_LOG_ERROR ("Cannot mark ECN");
-            return NULL;
+            // return NULL;
+            return item; // Hey buddy, if the packet is not ECN supported, we should never drop it
         }
     }
 
