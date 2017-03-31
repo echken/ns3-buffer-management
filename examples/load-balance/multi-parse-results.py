@@ -34,7 +34,7 @@ class Flow(object):
     __slots__ = ['flowId', 'delayMean', 'packetLossRatio', 'rxBitrate', 'txBitrate',
                  'fiveTuple', 'packetSizeMean', 'probe_stats_unsorted',
                  'hopCount', 'flowInterruptionsHistogram', 'rx_duration',
-                 'fct', 'txBytes', 'txPackets', 'rxPackets', 'rxBytes', 'lostPackets']
+                 'fct', 'txBytes', 'txPackets', 'rxPackets', 'rxBytes', 'lostPackets', 'throughput']
     def __init__(self, flow_el):
         self.flowId = int(flow_el.get('flowId'))
         rxPackets = long(flow_el.get('rxPackets'))
@@ -49,10 +49,15 @@ class Flow(object):
         self.rxBytes = rxBytes
         self.rxPackets = rxPackets
         self.rx_duration = rx_duration
+	throughput = rxBytes * 8 / fct / 1024 / 1024
         if fct > 0:
             self.fct = fct
         else:
             self.fct = None
+	if throughput > 0:
+	    self.throughput = throughput
+	else:
+	    self.throughput = None
         self.probe_stats_unsorted = []
         if rxPackets:
             self.hopCount = float(flow_el.get('timesForwarded')) / rxPackets + 1
@@ -148,6 +153,9 @@ def parse (fileName):
     total_packets = 0
     total_rx_packets = 0
 
+    total_large_throughput = 0
+    avg_large_throughput = 0
+
     max_small_flow_id = 0
     max_small_flow_fct = 0
 
@@ -160,7 +168,7 @@ def parse (fileName):
 
     for sim in sim_list:
         for flow in sim.flows:
-            if flow.fct == None or flow.txBitrate == None or flow.rxBitrate == None:
+            if flow.fct == None or flow.txBitrate == None or flow.rxBitrate == None or flow.throughput == None:
                 continue
             if flow.txBytes >= 52 * flow.txPackets + 4 and flow.txBytes <= 52 * flow.txPackets + 4 * 6:
                 continue
@@ -173,6 +181,7 @@ def parse (fileName):
             if flow.txBytes > 10000000:
                 large_flow_count += 1
                 large_flow_total_fct += flow.fct
+                total_large_throughput += flow.throughput
             if flow.txBytes < 100000:
                 small_flow_count += 1
                 small_flow_total_fct += flow.fct
@@ -199,6 +208,7 @@ def parse (fileName):
         print "No large flows"
     else:
         avg_large_fct = (large_flow_total_fct / large_flow_count)
+        avg_large_throughput = total_large_throughput / large_flow_count
         print "Large Flow Avg FCT: %.4f" % (large_flow_total_fct / large_flow_count)
 
     if small_flow_count == 0:
@@ -224,7 +234,7 @@ def parse (fileName):
 
     print "The FCT of 99 flow is: %.4f" % flow_fct_99
 
-    return {'avg_fct': avg_fct, 'avg_small_fct': avg_small_fct, 'avg_large_fct': avg_large_fct, 'small_flow_99': small_flow_fct_99, 'flow_99' : flow_fct_99, 'total_tx' : total_packets, 'total_rx' : total_rx_packets, 'flow_count' : flow_count}
+    return {'avg_fct': avg_fct, 'avg_small_fct': avg_small_fct, 'avg_large_fct': avg_large_fct, 'small_flow_99': small_flow_fct_99, 'flow_99' : flow_fct_99, 'total_tx' : total_packets, 'total_rx' : total_rx_packets, 'flow_count' : flow_count, 'large_throughput' : avg_large_throughput}
 
 def main (argv):
     files = glob.glob (argv[1])
@@ -236,6 +246,7 @@ def main (argv):
     total_tx = 0
     total_rx = 0
     flow_count = 0
+    total_large_throughput = 0
     print files
     for fileName in files:
 	print (fileName)
@@ -248,6 +259,7 @@ def main (argv):
         total_tx += result['total_tx']
         total_rx += result['total_rx']
         flow_count += result['flow_count']
+        total_large_throughput += result['large_throughput']
 
 	print ('')
     print "AVG FCT: %6f" % (total_fct / len(files))
@@ -258,6 +270,7 @@ def main (argv):
     print "Total Flow: %6f" % (flow_count / len(files))
     print "Total TX: %6f" % (total_tx / len(files))
     print "Total RX: %6f" % (total_rx / len(files))
+    print "Total Large Throughput: %6f " % (total_large_throughput / len(files))
 
 if __name__ == '__main__':
     main(sys.argv)
