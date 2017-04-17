@@ -326,15 +326,14 @@ int main (int argc, char *argv[])
         }
     }
 
-    NS_LOG_INFO ("Install incast application")
+    NS_LOG_INFO ("Install incast application");
 
-    double incast_period = (endTime - startTime) / 10;
+    double incast_period = endTime / 10;
 
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
-        uint32_t totalFlow = 0;
         double startTime = 0.0 + incast_period;
-        while (startTime < endTime))
+        while (startTime < endTime)
         {
             BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
             source.SetAttribute ("MaxBytes", UintegerValue (10000));
