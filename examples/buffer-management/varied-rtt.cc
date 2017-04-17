@@ -326,6 +326,34 @@ int main (int argc, char *argv[])
         }
     }
 
+    NS_LOG_INFO ("Install incast application")
+
+    double incast_period = (endTime - startTime) / 10;
+
+    for (uint32_t i = 0; i < numOfSenders; ++i)
+    {
+        uint32_t totalFlow = 0;
+        double startTime = 0.0 + incast_period;
+        while (startTime < endTime))
+        {
+            BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
+            source.SetAttribute ("MaxBytes", UintegerValue (10000));
+            source.SetAttribute ("SendSize", UintegerValue (1400));
+            ApplicationContainer sourceApps = source.Install (senders.Get (i));
+            sourceApps.Start (Seconds (startTime));
+            sourceApps.Stop (Seconds (simEndTime));
+
+            PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), basePort));
+            ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer.Get (1));
+            sinkApp.Start (Seconds (0.0));
+            sinkApp.Stop (Seconds (simEndTime));
+
+            ++basePort;
+            startTime += incast_period;
+        }
+    }
+
+
     NS_LOG_INFO ("Start Tracing System");
 
     queuediscDataset.SetTitle ("queue_disc");
