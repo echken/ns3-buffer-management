@@ -8,7 +8,7 @@
 #include "ns3/flow-monitor-module.h"
 #include "ns3/gnuplot.h"
 
-#define BUFFER_SIZE 120     // 120 packets
+#define BUFFER_SIZE 600     // 120 packets
 #define FLOW_SIZE_MIN 3000  // 3k
 #define FLOW_SIZE_MAX 60000 // 60k
 
@@ -22,7 +22,8 @@ Gnuplot2dDataset throughputDataset;
 
 enum AQM {
     RED,
-    CODEL
+    CODEL,
+    XXX
 };
 
 template<typename T>  T
@@ -39,9 +40,13 @@ GetFormatedStr (std::string str, std::string terminal, AQM aqm, uint32_t interva
     {
         ss << "red_" << str << "_n" << numOfSenders << "." << terminal;
     }
-    else
+    else if (aqm == CODEL)
     {
         ss << "codel_" << str << "_i" << interval << "_t" << target << "_n" << numOfSenders << "." << terminal;
+    }
+    else
+    {
+        ss << "xxx_" << str << "_n" << numOfSenders << "." << terminal;
     }
     return ss.str ();
 }
@@ -119,8 +124,14 @@ int main (int argc, char *argv[])
 
     uint32_t numOfSenders = 10;
 
+    uint32_t redMarkingThreshold = 160;
+
     uint32_t CODELInterval = 150;
     uint32_t CODELTarget = 10;
+
+    uint32_t xxxInterval = 150;
+    uint32_t xxxTarget = 10;
+    uint32_t xxxMarkingThreshold = 160;
 
     CommandLine cmd;
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
@@ -153,6 +164,10 @@ int main (int argc, char *argv[])
     {
         aqm = CODEL;
     }
+    else if (aqmStr.compare ("XXX") == 0)
+    {
+        aqm = XXX;
+    }
     else
     {
         return 0;
@@ -181,6 +196,14 @@ int main (int argc, char *argv[])
     Config::SetDefault ("ns3::RedQueueDisc::QueueLimit", UintegerValue (BUFFER_SIZE));
     Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (false));
 
+    // XXX Configuration
+    Config::SetDefault ("ns3::XXXQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
+    Config::SetDefault ("ns3::XXXQueueDisc::MaxPackets", UintegerValue (BUFFER_SIZE));
+    Config::SetDefault ("ns3::XXXQueueDisc::InstantaneousMarkingThreshold", UintegerValue (xxxMarkingThreshold));
+    Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingTarget", TimeValue (MicroSeconds (xxxTarget)));
+    Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingInterval", TimeValue (MicroSeconds (xxxInterval)));
+
+
     NS_LOG_INFO ("Setting up nodes.");
     NodeContainer senders;
     senders.Create (numOfSenders);
@@ -199,7 +222,7 @@ int main (int argc, char *argv[])
     PointToPointHelper p2p;
 
     p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
-    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(10)));
+    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(20)));
     p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (5));
 
     TrafficControlHelper tc;
@@ -207,10 +230,14 @@ int main (int argc, char *argv[])
     {
         tc.SetRootQueueDisc ("ns3::CoDelQueueDisc");
     }
+    else if (aqm == RED)
+    {
+        tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (redMarkingThreshold),
+                                                  "MaxTh", DoubleValue (redMarkingThreshold));
+    }
     else
     {
-        tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (30),
-                                                  "MaxTh", DoubleValue (30));
+        tc.SetRootQueueDisc ("ns3::XXXQueueDisc");
     }
 
     NS_LOG_INFO ("Assign IP address");
