@@ -9,6 +9,10 @@
 #include "ns3/link-monitor-module.h"
 #include "ns3/gnuplot.h"
 
+#define FLOW_SIZE_MIN 3000  // 3k
+#define FLOW_SIZE_MAX 60000 // 60k
+
+
 // The CDF in TrafficGenerator
 extern "C"
 {
@@ -336,7 +340,7 @@ int main (int argc, char *argv[])
         while (startTime < endTime)
         {
             BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
-            source.SetAttribute ("MaxBytes", UintegerValue (10000));
+            source.SetAttribute ("MaxBytes", UintegerValue (rand_range (FLOW_SIZE_MIN, FLOW_SIZE_MAX)));
             source.SetAttribute ("SendSize", UintegerValue (1400));
             ApplicationContainer sourceApps = source.Install (senders.Get (i));
             sourceApps.Start (Seconds (startTime));
