@@ -28,6 +28,7 @@ Gnuplot2dDataset queuediscDataset;
 enum AQM {
     RED,
     CODEL,
+    PIE,
     XXX
 };
 
@@ -61,6 +62,10 @@ GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, 
     else if (aqm == XXX)
     {
         ss << id << "_vr_s_xxx_" << str << "_int" << redThreshold << "_i" << interval << "_t" << target << "_n" <<numOfSenders << "_l" << load << "." << terminal;
+    }
+    else if (aqm == PIE)
+    {
+        ss << id << "_vr_s_pie" << str << "_t" << target << "_n" << numOfSenders << "_l" << load << "." << terminal;
     }
     return ss.str ();
 }
@@ -126,6 +131,8 @@ int main (int argc, char *argv[])
     uint32_t xxxTarget = 10;
     uint32_t xxxMarkingThreshold = 30;
 
+    uint32_t pieTarget = 10;
+
     CommandLine cmd;
     cmd.AddValue ("id", "The running ID", id);
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
@@ -146,6 +153,8 @@ int main (int argc, char *argv[])
     cmd.AddValue ("XXXInterval", "The persistent interval for XXX", xxxInterval);
     cmd.AddValue ("XXXTarget", "The persistent target for XXX", xxxTarget);
     cmd.AddValue ("XXXMarkingThreshold", "The instantaneous marking threshold for XXX", xxxMarkingThreshold);
+
+    cmd.AddValue ("PIETarget", "The pie delay target", pieTarget);
 
     cmd.Parse (argc, argv);
 
@@ -177,6 +186,10 @@ int main (int argc, char *argv[])
         redMarkingThreshold = xxxMarkingThreshold;
         CODELTarget = xxxTarget;
         CODELInterval = xxxInterval;
+    }
+    else if (aqmStr.compare ("PIE") == 0)
+    {
+        aqm = PIE;
     }
     else
     {
@@ -213,6 +226,12 @@ int main (int argc, char *argv[])
     Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingTarget", TimeValue (MicroSeconds (xxxTarget)));
     Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingInterval", TimeValue (MicroSeconds (xxxInterval)));
 
+    // PIE Configuration
+    Config::SetDefault ("ns3::PieQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
+    Config::SetDefault ("ns3::PieQueueDisc::MeanPktSize", UintegerValue (1400));
+    Config::SetDefault ("ns3::PieQueueDisc::QueueLimit", UintegerValue (bufferSize));
+    Config::SetDefault ("ns3::PieQueueDisc::QueueDelayReference", TimeValue (MicroSeconds (pieTarget)));
+
     NS_LOG_INFO ("Loading RTT CDF");
     struct cdf_table *rttCdfTable = new cdf_table ();
     init_cdf (rttCdfTable);
@@ -248,6 +267,10 @@ int main (int argc, char *argv[])
     {
         tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (redMarkingThreshold),
                                                   "MaxTh", DoubleValue (redMarkingThreshold));
+    }
+    else if (aqm == PIE)
+    {
+        tc.SetRootQueueDisc ("ns3::PieQueueDisc");
     }
     else
     {
