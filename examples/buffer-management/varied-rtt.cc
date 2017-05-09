@@ -190,6 +190,7 @@ int main (int argc, char *argv[])
     else if (aqmStr.compare ("PIE") == 0)
     {
         aqm = PIE;
+        CODELTarget = pieTarget;
     }
     else
     {
