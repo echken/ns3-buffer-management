@@ -423,6 +423,7 @@ void PieQueueDisc::CalculateP ()
     }
   else
     {
+      /*
       p = m_a * (qDelay.GetSeconds () - m_qDelayRef.GetSeconds ()) + m_b * (qDelay.GetSeconds () - m_qDelayOld.GetSeconds ());
       if (m_markingProb < 0.001)
         {
@@ -452,6 +453,26 @@ void PieQueueDisc::CalculateP ()
         {
           p = 0.02;
         }
+       */
+       // Update to use the algorithm from papers
+       double alpha = m_a;
+       double beta = m_b;
+       if (m_markingProb < 0.01)
+       {
+           alpha = m_a / 8;
+           beta = m_b / 8;
+       }
+       else if (m_markingProb < 0.1)
+       {
+           alpha = m_a / 2;
+           beta = m_b / 2;
+       }
+       p = alpha * (qDelay.GetSeconds () - m_qDelayRef.GetSeconds ()) + beta * (qDelay.GetSeconds () - m_qDelayOld.GetSeconds ());
+       if ((m_markingProb >= 0.1) && (p > 0.02))
+       {
+          p = 0.02;
+       }
+
     }
 
   p += m_markingProb;
