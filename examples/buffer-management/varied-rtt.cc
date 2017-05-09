@@ -65,7 +65,7 @@ GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, 
     }
     else if (aqm == PIE)
     {
-        ss << id << "_vr_s_pie" << str << "_t" << target << "_n" << numOfSenders << "_l" << load << "." << terminal;
+        ss << id << "_vr_s_pie_" << str << "_t" << target << "_n" << numOfSenders << "_l" << load << "." << terminal;
     }
     return ss.str ();
 }
@@ -230,6 +230,7 @@ int main (int argc, char *argv[])
     // PIE Configuration
     Config::SetDefault ("ns3::PieQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
     Config::SetDefault ("ns3::PieQueueDisc::MeanPktSize", UintegerValue (1400));
+    Config::SetDefault ("ns3::PieQueueDisc::Tupdate", TimeValue (MicroSeconds (100)));
     Config::SetDefault ("ns3::PieQueueDisc::QueueLimit", UintegerValue (bufferSize));
     Config::SetDefault ("ns3::PieQueueDisc::QueueDelayReference", TimeValue (MicroSeconds (pieTarget)));
 
