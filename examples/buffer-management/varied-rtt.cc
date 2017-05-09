@@ -133,6 +133,8 @@ int main (int argc, char *argv[])
 
     uint32_t pieTarget = 10;
 
+    bool enableIncast = false;
+
     CommandLine cmd;
     cmd.AddValue ("id", "The running ID", id);
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
@@ -155,6 +157,7 @@ int main (int argc, char *argv[])
     cmd.AddValue ("XXXMarkingThreshold", "The instantaneous marking threshold for XXX", xxxMarkingThreshold);
 
     cmd.AddValue ("PIETarget", "The pie delay target", pieTarget);
+    cmd.AddValue ("enableIncast", "Whether to enable incast", enableIncast);
 
     cmd.Parse (argc, argv);
 
@@ -230,7 +233,7 @@ int main (int argc, char *argv[])
     // PIE Configuration
     Config::SetDefault ("ns3::PieQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
     Config::SetDefault ("ns3::PieQueueDisc::MeanPktSize", UintegerValue (1400));
-    Config::SetDefault ("ns3::PieQueueDisc::Tupdate", TimeValue (MicroSeconds (100)));
+    Config::SetDefault ("ns3::PieQueueDisc::Tupdate", TimeValue (MicroSeconds (10)));
     Config::SetDefault ("ns3::PieQueueDisc::QueueLimit", UintegerValue (bufferSize));
     Config::SetDefault ("ns3::PieQueueDisc::QueueDelayReference", TimeValue (MicroSeconds (pieTarget)));
 
@@ -355,6 +358,8 @@ int main (int argc, char *argv[])
         }
     }
 
+    if (enableIncast)
+    {
     NS_LOG_INFO ("Install incast application");
 
     double incast_period = endTime / 10;
@@ -379,6 +384,7 @@ int main (int argc, char *argv[])
             ++basePort;
             startTime += incast_period;
         }
+    }
     }
 
 
