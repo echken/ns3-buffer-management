@@ -551,6 +551,10 @@ PieQueueDisc::DoDequeue ()
   double now = Simulator::Now ().GetSeconds ();
   uint32_t pktSize = item->GetPacketSize ();
 
+  Ptr<Packet> p = item->GetPacket ();
+  PieTimestampTag tag;
+  p->RemovePacketTag (tag);
+
   // if not in a measurement cycle and the queue has built up to dq_threshold,
   // start the measurement cycle
 
