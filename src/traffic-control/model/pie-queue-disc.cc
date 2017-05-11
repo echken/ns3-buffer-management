@@ -468,10 +468,13 @@ void PieQueueDisc::CalculateP ()
            beta = m_b / 2;
        }
        p = alpha * (qDelay.GetSeconds () - m_qDelayRef.GetSeconds ()) + beta * (qDelay.GetSeconds () - m_qDelayOld.GetSeconds ());
+       // Remove this part to speed up the marking
+       /*
        if ((m_markingProb >= 0.1) && (p > 0.02))
        {
           p = 0.02;
        }
+       */
 
     }
 
