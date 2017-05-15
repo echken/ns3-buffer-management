@@ -53,10 +53,11 @@ private:
     /**
      * Whether the persistent marking should work
      * @param p the packet to judge
+     * @param sojournTime the sojournTime of a packet
      * @param now the current time
      * @return true if it should be marked
      */
-    bool OkToMark (Ptr<Packet> p, Time now);
+    bool OkToMark (Ptr<Packet> p, Time sojournTime, Time now);
 
     Time ControlLaw (void);
 
@@ -64,7 +65,7 @@ private:
     uint32_t m_maxBytes;                    //!< Max # of bytes accepted by the queue
     Queue::QueueMode     m_mode;            //!< The operating mode (Bytes or packets)
 
-    uint32_t m_instantMarkingThreshold;     //!< The instantaneous marking threshold
+    Time m_instantMarkingThreshold;         //!< The instantaneous marking threshold
 
     Time m_persistentMarkingInterval;       //!< The time interval used in persistent marking
     Time m_persistentMarkingTarget;         //!< The time target used in persistent marking

@@ -87,9 +87,9 @@ XXXQueueDisc::GetTypeId (void)
               MakeUintegerAccessor (&XXXQueueDisc::m_maxBytes),
               MakeUintegerChecker<uint32_t> ())
       .AddAttribute ("InstantaneousMarkingThreshold", "The marking threshold for instantaneous queue length",
-              UintegerValue (DEFAULT_XXX_LIMIT / 4),
-              MakeUintegerAccessor (&XXXQueueDisc::m_instantMarkingThreshold),
-              MakeUintegerChecker<uint32_t> ())
+              StringValue ("20us"),
+              MakeTimeAccessor (&XXXQueueDisc::m_instantMarkingThreshold),
+              MakeTimeChecker ())
       .AddAttribute ("PersistentMarkingInterval", "The persistent marking interval",
               StringValue ("100us"),
               MakeTimeAccessor (&XXXQueueDisc::m_persistentMarkingInterval),
@@ -158,18 +158,28 @@ XXXQueueDisc::DoDequeue (void)
         return NULL;
     }
 
-    // First we check the instantaneous queue length
-    if ((m_mode == Queue::QUEUE_MODE_PACKETS && GetInternalQueue (0)->GetNPackets () > m_instantMarkingThreshold) ||
-        (m_mode == Queue::QUEUE_MODE_BYTES && GetInternalQueue (0)->GetNBytes () > m_instantMarkingThreshold))
-    {
-        instantaneousMarking = true;
-    }
 
     Ptr<QueueDiscItem> item = StaticCast<QueueDiscItem> (GetInternalQueue (0)->Dequeue ());
     Ptr<Packet> p = item->GetPacket ();
 
+    XXXTimestampTag tag;
+    bool found = p->RemovePacketTag (tag);
+    if (!found)
+    {
+        NS_LOG_ERROR ("Cannot find the XXX Timestamp Tag");
+        return NULL;
+    }
+
+    Time sojournTime = now - tag.GetTxTime ();
+
+     // First we check the instantaneous queue length
+    if (sojournTime > m_instantMarkingThreshold)
+    {
+        instantaneousMarking = true;
+    }
+
     //Second we check the persistent marking
-    bool okToMark = OkToMark (p, now);
+    bool okToMark = OkToMark (p, sojournTime, now);
     if (m_marking)
     {
         if (!okToMark)
@@ -277,18 +287,8 @@ XXXQueueDisc::MarkingECN (Ptr<QueueDiscItem> item)
 }
 
 bool
-XXXQueueDisc::OkToMark (Ptr<Packet> p, Time now)
+XXXQueueDisc::OkToMark (Ptr<Packet> p, Time sojournTime, Time now)
 {
-    XXXTimestampTag tag;
-    bool found = p->RemovePacketTag (tag);
-    if (!found)
-    {
-        NS_LOG_ERROR ("Cannot find the XXX Timestamp Tag");
-        return false;
-    }
-
-    Time sojournTime = now - tag.GetTxTime ();
-
     if (sojournTime < m_persistentMarkingTarget)
     {
         m_firstAboveTime = Time (0);
