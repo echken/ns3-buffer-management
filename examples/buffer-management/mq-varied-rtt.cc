@@ -27,7 +27,7 @@ NS_LOG_COMPONENT_DEFINE ("MQVariedRTT");
 Gnuplot2dDataset queuediscDataset;
 
 enum AQM {
-    RED,
+    TCN,
     CODEL,
     PIE,
     XXX
@@ -52,7 +52,7 @@ std::string
 GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, double load, uint32_t interval, uint32_t target, uint32_t redThreshold, uint32_t numOfSenders)
 {
     std::stringstream ss;
-    if (aqm == RED)
+    if (aqm == TCN)
     {
         ss << id << "_mq_s_red_" << str << "_t" << redThreshold << "_n" << numOfSenders << "_l" << load << "." << terminal;
     }
@@ -66,7 +66,7 @@ GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, 
     }
     else if (aqm == PIE)
     {
-        ss << id << "_mq_s_pie_" << str << "_t" << target << "_n" << numOfSenders << "_l" << load << "." << terminal;
+        ss << id << "_mq_s_pie_" << str << "_i" << interval << "_t" << target << "_n" << numOfSenders << "_l" << load << "." << terminal;
     }
     return ss.str ();
 }
@@ -115,33 +115,34 @@ int main (int argc, char *argv[])
 
     uint32_t numOfSenders = 8;
 
-    uint32_t CODELInterval = 150;
-    uint32_t CODELTarget = 10;
-
-    double load = 0.1;
+        double load = 0.1;
     std::string cdfFileName = "";
     std::string rttCdfFileName = "";
 
     unsigned randomSeed = 0;
     uint32_t flowNum = 1000;
 
-    uint32_t redMarkingThreshold = 30;
     uint32_t bufferSize = 120;
+
+    uint32_t TCNThreshold = 65;
+
+    uint32_t CODELInterval = 150;
+    uint32_t CODELTarget = 10;
 
     uint32_t xxxInterval = 150;
     uint32_t xxxTarget = 10;
-    uint32_t xxxMarkingThreshold = 30;
+    uint32_t xxxMarkingThreshold = 65; // 65ms
 
     uint32_t pieTarget = 10;
+    uint32_t pieInterval = 10; // 10ms
 
     bool enableIncast = false;
 
     CommandLine cmd;
     cmd.AddValue ("id", "The running ID", id);
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
-    cmd.AddValue ("AQM", "AQM to use: RED, CODEL", aqmStr);
-    cmd.AddValue ("CODELInterval", "The interval parameter in CODEL", CODELInterval);
-    cmd.AddValue ("CODELTarget", "The target parameter in CODEL", CODELTarget);
+    cmd.AddValue ("AQM", "AQM to use: TCN, CODEL, PIE and XXX", aqmStr);
+
     cmd.AddValue ("numOfSenders", "Concurrent senders", numOfSenders);
     cmd.AddValue ("endTime", "Flow launch end time", endTime);
     cmd.AddValue ("simEndTime", "Simulation end time", simEndTime);
@@ -150,14 +151,22 @@ int main (int argc, char *argv[])
     cmd.AddValue ("load", "Load of the network, 0.0 - 1.0", load);
     cmd.AddValue ("randomSeed", "Random seed, 0 for random generated", randomSeed);
     cmd.AddValue ("flowNum", "Total flow num", flowNum);
-    cmd.AddValue ("redMarkingThreshold", "The RED marking threshold", redMarkingThreshold);
+
     cmd.AddValue ("bufferSize", "The buffer size", bufferSize);
+
+    cmd.AddValue ("TCNThreshold", "The threshold for TCN", TCNThreshold);
+
+    cmd.AddValue ("CODELInterval", "The interval parameter in CODEL", CODELInterval);
+    cmd.AddValue ("CODELTarget", "The target parameter in CODEL", CODELTarget);
+
 
     cmd.AddValue ("XXXInterval", "The persistent interval for XXX", xxxInterval);
     cmd.AddValue ("XXXTarget", "The persistent target for XXX", xxxTarget);
     cmd.AddValue ("XXXMarkingThreshold", "The instantaneous marking threshold for XXX", xxxMarkingThreshold);
 
     cmd.AddValue ("PIETarget", "The pie delay target", pieTarget);
+    cmd.AddValue ("PIEInterval", "The interval used to update PIE p", pieInterval);
+
     cmd.AddValue ("enableIncast", "Whether to enable incast", enableIncast);
 
     cmd.Parse (argc, argv);
@@ -176,9 +185,10 @@ int main (int argc, char *argv[])
         return 0;
     }
 
-    if (aqmStr.compare ("RED") == 0)
+    if (aqmStr.compare ("TCN") == 0)
     {
-        aqm = RED;
+        aqm = TCN;
+        return 0;
     }
     else if (aqmStr.compare ("CODEL") == 0)
     {
@@ -187,7 +197,7 @@ int main (int argc, char *argv[])
     else if (aqmStr.compare ("XXX") == 0)
     {
         aqm = XXX;
-        redMarkingThreshold = xxxMarkingThreshold;
+        TCNThreshold = xxxMarkingThreshold;
         CODELTarget = xxxTarget;
         CODELInterval = xxxInterval;
     }
@@ -195,6 +205,7 @@ int main (int argc, char *argv[])
     {
         aqm = PIE;
         CODELTarget = pieTarget;
+        CODELInterval = pieInterval;
     }
     else
     {
@@ -219,10 +230,12 @@ int main (int argc, char *argv[])
     Config::SetDefault ("ns3::CoDelQueueDisc::Interval", TimeValue (MicroSeconds (CODELInterval)));
 
     // RED Configuration
+    /*
     Config::SetDefault ("ns3::RedQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
     Config::SetDefault ("ns3::RedQueueDisc::MeanPktSize", UintegerValue (1400));
     Config::SetDefault ("ns3::RedQueueDisc::QueueLimit", UintegerValue (bufferSize));
     Config::SetDefault ("ns3::RedQueueDisc::Gentle", BooleanValue (false));
+    */
 
     // XXX Configuration
     Config::SetDefault ("ns3::XXXQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
@@ -234,7 +247,7 @@ int main (int argc, char *argv[])
     // PIE Configuration
     Config::SetDefault ("ns3::PieQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
     Config::SetDefault ("ns3::PieQueueDisc::MeanPktSize", UintegerValue (1400));
-    Config::SetDefault ("ns3::PieQueueDisc::Tupdate", TimeValue (MicroSeconds (10)));
+    Config::SetDefault ("ns3::PieQueueDisc::Tupdate", TimeValue (MicroSeconds (pieInterval)));
     Config::SetDefault ("ns3::PieQueueDisc::QueueLimit", UintegerValue (bufferSize));
     Config::SetDefault ("ns3::PieQueueDisc::QueueDelayReference", TimeValue (MicroSeconds (pieTarget)));
 
@@ -261,49 +274,67 @@ int main (int argc, char *argv[])
 
     PointToPointHelper p2p;
 
-    p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
-    p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (5));
-
     TrafficControlHelper tc;
-    if (aqm == CODEL)
-    {
-        tc.SetRootQueueDisc ("ns3::CoDelQueueDisc");
-    }
-    else if (aqm == RED)
-    {
-        tc.SetRootQueueDisc ("ns3::RedQueueDisc", "MinTh", DoubleValue (redMarkingThreshold),
-                                                  "MaxTh", DoubleValue (redMarkingThreshold));
-    }
-    else if (aqm == PIE)
-    {
-        tc.SetRootQueueDisc ("ns3::PieQueueDisc");
-    }
-    else
-    {
-        tc.SetRootQueueDisc ("ns3::XXXQueueDisc");
-    }
 
     NS_LOG_INFO ("Assign IP address");
     Ipv4AddressHelper ipv4;
     ipv4.SetBase ("10.1.1.0", "255.255.255.0");
+
+    // For sender queues, we use the original drop tail queues
 
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
         uint32_t linkLatency = gen_random_cdf (rttCdfTable) - 5;
         NS_LOG_INFO ("Generate link latency: " << linkLatency);
         p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(linkLatency)));
+        p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
+        p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (bufferSize));
+
         NodeContainer nodeContainer = NodeContainer (senders.Get (i), switches.Get (0));
         NetDeviceContainer netDeviceContainer = p2p.Install (nodeContainer);
-        QueueDiscContainer queuediscDataset = tc.Install (netDeviceContainer);
         Ipv4InterfaceContainer ipv4InterfaceContainer = ipv4.Assign (netDeviceContainer);
         ipv4.NewNetwork ();
+        tc.Uninstall (netDeviceContainer);
     }
 
     p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(5)));
+    p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
+    p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (5));
+
     NodeContainer switchToRecvNodeContainer = NodeContainer (switches.Get (0), receivers.Get (0));
     NetDeviceContainer switchToRecvNetDeviceContainer = p2p.Install (switchToRecvNodeContainer);
     QueueDiscContainer switchToRecvQueueDiscContainer = tc.Install (switchToRecvNetDeviceContainer);
     Ipv4InterfaceContainer switchToRecvIpv4Container = ipv4.Assign (switchToRecvNetDeviceContainer);
+
+    tc.SetRootQueueDisc ("ns3::PfifoFastQueueDisc", "Limit", UintegerValue (bufferSize));
+    tc.Install (switchToRecvNetDeviceContainer.Get (1));
+
+    Ptr<DWRRQueueDisc> dwrrQdisc = CreateObject<DWRRQueueDisc> ();
+    ObjectFactory innerQueueFactory;
+    if (aqm == CODEL)
+    {
+        innerQueueFactory.SetTypeId ("ns3::CoDelQueueDisc");
+    }
+    else if (aqm == PIE)
+    {
+        innerQueueFactory.SetTypeId ("ns3::PieQueueDisc");
+    }
+    else
+    {
+        innerQueueFactory.SetTypeId ("ns3::XXXQueueDisc");
+    }
+
+    for (uint32_t i = 0; i < QUEUE_NUM; ++i)
+    {
+        Ptr<QueueDisc> queueDisc = innerQueueFactory.Create<QueueDisc> ();
+        dwrrQdisc->AddDWRRClass (queueDisc, i, 1500);
+    }
+
+    Ptr<NetDevice> device = switchToRecvNetDeviceContainer.Get (0);
+    Ptr<TrafficControlLayer> tcl = device->GetNode ()->GetObject<TrafficControlLayer> ();
+
+    dwrrQdisc->SetNetDevice (device);
+    tcl->SetRootQueueDiscOnDevice (device, dwrrQdisc);
 
     free_cdf (rttCdfTable);
 
@@ -416,13 +447,13 @@ int main (int argc, char *argv[])
     Simulator::Stop (Seconds (simEndTime));
     Simulator::Run ();
 
-    flowMonitor->SerializeToXmlFile(GetFormatedStr (id, "flow_monitor", "xml", aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders), true, true);
-    linkMonitor->OutputToFile (GetFormatedStr (id, "link_monitor", "xml", aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders), &DefaultFormat);
+    flowMonitor->SerializeToXmlFile(GetFormatedStr (id, "flow_monitor", "xml", aqm, load, CODELInterval, CODELTarget, TCNThreshold, numOfSenders), true, true);
+    linkMonitor->OutputToFile (GetFormatedStr (id, "link_monitor", "xml", aqm, load, CODELInterval, CODELTarget, TCNThreshold, numOfSenders), &DefaultFormat);
 
     Simulator::Destroy ();
     free_cdf (cdfTable);
 
-    DoGnuPlot (id, aqm, load, CODELInterval, CODELTarget, redMarkingThreshold, numOfSenders);
+    DoGnuPlot (id, aqm, load, CODELInterval, CODELTarget, TCNThreshold, numOfSenders);
 
     return 0;
 }
