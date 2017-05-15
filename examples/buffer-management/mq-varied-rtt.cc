@@ -240,7 +240,7 @@ int main (int argc, char *argv[])
     // XXX Configuration
     Config::SetDefault ("ns3::XXXQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
     Config::SetDefault ("ns3::XXXQueueDisc::MaxPackets", UintegerValue (bufferSize));
-    Config::SetDefault ("ns3::XXXQueueDisc::InstantaneousMarkingThreshold", UintegerValue (xxxMarkingThreshold));
+    Config::SetDefault ("ns3::XXXQueueDisc::InstantaneousMarkingThreshold", TimeValue (MicroSeconds (xxxMarkingThreshold)));
     Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingTarget", TimeValue (MicroSeconds (xxxTarget)));
     Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingInterval", TimeValue (MicroSeconds (xxxInterval)));
 
@@ -303,11 +303,7 @@ int main (int argc, char *argv[])
 
     NodeContainer switchToRecvNodeContainer = NodeContainer (switches.Get (0), receivers.Get (0));
     NetDeviceContainer switchToRecvNetDeviceContainer = p2p.Install (switchToRecvNodeContainer);
-    QueueDiscContainer switchToRecvQueueDiscContainer = tc.Install (switchToRecvNetDeviceContainer);
-    Ipv4InterfaceContainer switchToRecvIpv4Container = ipv4.Assign (switchToRecvNetDeviceContainer);
 
-    tc.SetRootQueueDisc ("ns3::PfifoFastQueueDisc", "Limit", UintegerValue (bufferSize));
-    tc.Install (switchToRecvNetDeviceContainer.Get (1));
 
     Ptr<DWRRQueueDisc> dwrrQdisc = CreateObject<DWRRQueueDisc> ();
     ObjectFactory innerQueueFactory;
@@ -335,6 +331,9 @@ int main (int argc, char *argv[])
 
     dwrrQdisc->SetNetDevice (device);
     tcl->SetRootQueueDiscOnDevice (device, dwrrQdisc);
+
+    tc.SetRootQueueDisc ("ns3::PfifoFastQueueDisc", "Limit", UintegerValue (bufferSize));
+    Ipv4InterfaceContainer switchToRecvIpv4Container = ipv4.Assign (switchToRecvNetDeviceContainer);
 
     free_cdf (rttCdfTable);
 
@@ -425,7 +424,7 @@ int main (int argc, char *argv[])
     queuediscDataset.SetTitle ("queue_disc");
     queuediscDataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
 
-    Simulator::ScheduleNow (&CheckQueueDiscSize, switchToRecvQueueDiscContainer.Get (0));
+    Simulator::ScheduleNow (&CheckQueueDiscSize, dwrrQdisc);
 
     NS_LOG_INFO ("Enabling Flow Monitor");
     Ptr<FlowMonitor> flowMonitor;
