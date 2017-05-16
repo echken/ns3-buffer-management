@@ -19,6 +19,7 @@ def build(bld):
       'model/wfq-queue-disc.cc',
       'model/xxx-queue-disc.cc',
       'model/pie-queue-disc.cc',
+      'model/tcn-queue-disc.cc',
       'helper/traffic-control-helper.cc',
       'helper/queue-disc-container.cc'
         ]
@@ -42,6 +43,7 @@ def build(bld):
       'model/wfq-queue-disc.h',
       'model/xxx-queue-disc.h',
       'model/pie-queue-disc.h',
+      'model/tcn-queue-disc.h',
       'helper/traffic-control-helper.h',
       'helper/queue-disc-container.h'
         ]

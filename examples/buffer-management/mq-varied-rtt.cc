@@ -306,6 +306,10 @@ int main (int argc, char *argv[])
 
 
     Ptr<DWRRQueueDisc> dwrrQdisc = CreateObject<DWRRQueueDisc> ();
+    Ptr<Ipv4SimplePacketFilter> filter = CreateObject<Ipv4SimplePacketFilter> ();
+
+    dwrrQdisc->AddPacketFilter (filter);
+
     ObjectFactory innerQueueFactory;
     if (aqm == CODEL)
     {
@@ -374,6 +378,7 @@ int main (int argc, char *argv[])
             BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
             source.SetAttribute ("MaxBytes", UintegerValue (flowSize));
             source.SetAttribute ("SendSize", UintegerValue (1400));
+            source.SetAttribute ("SimpleTOS", UintegerValue (i % QUEUE_NUM));
             ApplicationContainer sourceApps = source.Install (senders.Get (i));
             sourceApps.Start (Seconds (startTime));
             sourceApps.Stop (Seconds (simEndTime));
