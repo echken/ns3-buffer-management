@@ -229,6 +229,12 @@ int main (int argc, char *argv[])
     Config::SetDefault ("ns3::CoDelQueueDisc::Target", TimeValue (MicroSeconds (CODELTarget)));
     Config::SetDefault ("ns3::CoDelQueueDisc::Interval", TimeValue (MicroSeconds (CODELInterval)));
 
+    // TCN Configuration
+    Config::SetDefault ("ns3::TCNQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
+    Config::SetDefault ("ns3::TCNQueueDisc::MaxPackets", UintegerValue (bufferSize));
+    Config::SetDefault ("ns3::TCNQueueDisc::Threshold", TimeValue (MicroSeconds (TCNThreshold)));
+
+
     // RED Configuration
     /*
     Config::SetDefault ("ns3::RedQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
@@ -311,7 +317,11 @@ int main (int argc, char *argv[])
     dwrrQdisc->AddPacketFilter (filter);
 
     ObjectFactory innerQueueFactory;
-    if (aqm == CODEL)
+    if (aqm == TCN)
+    {
+        innerQueueFactory.SetTypeId ("ns3::TCNQueueDisc");
+    }
+    else if (aqm == CODEL)
     {
         innerQueueFactory.SetTypeId ("ns3::CoDelQueueDisc");
     }
