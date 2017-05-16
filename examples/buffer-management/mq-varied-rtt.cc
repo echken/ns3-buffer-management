@@ -9,10 +9,10 @@
 #include "ns3/link-monitor-module.h"
 #include "ns3/gnuplot.h"
 
-#define QUEUE_NUM 8
+// #define QUEUE_NUM 8
 
-#define FLOW_SIZE_MIN 3000  // 3k
-#define FLOW_SIZE_MAX 60000 // 60k
+// #define FLOW_SIZE_MIN 3000  // 3k
+// #define FLOW_SIZE_MAX 60000 // 60k
 
 // The CDF in TrafficGenerator
 extern "C"
@@ -113,9 +113,9 @@ int main (int argc, char *argv[])
     double endTime = 10.0;
     double simEndTime = 15.0;
 
-    uint32_t numOfSenders = 8;
+    uint32_t numOfSenders = 5;
 
-        double load = 0.1;
+    double load = 0.1;
     std::string cdfFileName = "";
     std::string rttCdfFileName = "";
 
@@ -136,14 +136,14 @@ int main (int argc, char *argv[])
     uint32_t pieTarget = 10;
     uint32_t pieInterval = 10; // 10ms
 
-    bool enableIncast = false;
+    // bool enableIncast = false;
 
     CommandLine cmd;
     cmd.AddValue ("id", "The running ID", id);
     cmd.AddValue ("transportProt", "Transport protocol to use: Tcp, DcTcp", transportProt);
     cmd.AddValue ("AQM", "AQM to use: TCN, CODEL, PIE and XXX", aqmStr);
 
-    cmd.AddValue ("numOfSenders", "Concurrent senders", numOfSenders);
+    // cmd.AddValue ("numOfSenders", "Concurrent senders", numOfSenders);
     cmd.AddValue ("endTime", "Flow launch end time", endTime);
     cmd.AddValue ("simEndTime", "Simulation end time", simEndTime);
     cmd.AddValue ("cdfFileName", "File name for flow distribution", cdfFileName);
@@ -167,7 +167,7 @@ int main (int argc, char *argv[])
     cmd.AddValue ("PIETarget", "The pie delay target", pieTarget);
     cmd.AddValue ("PIEInterval", "The interval used to update PIE p", pieInterval);
 
-    cmd.AddValue ("enableIncast", "Whether to enable incast", enableIncast);
+    // cmd.AddValue ("enableIncast", "Whether to enable incast", enableIncast);
 
     cmd.Parse (argc, argv);
 
@@ -334,11 +334,19 @@ int main (int argc, char *argv[])
         innerQueueFactory.SetTypeId ("ns3::XXXQueueDisc");
     }
 
+    /*
     for (uint32_t i = 0; i < QUEUE_NUM; ++i)
     {
         Ptr<QueueDisc> queueDisc = innerQueueFactory.Create<QueueDisc> ();
         dwrrQdisc->AddDWRRClass (queueDisc, i, 1500);
     }
+    */
+
+    Ptr<QueueDisc> queueDisc1 = innerQueueFactory.Create<QueueDisc> ();
+    Ptr<QueueDisc> queueDisc2 = innerQueueFactory.Create<QueueDisc> ();
+
+    dwrrQdisc->AddDWRRClass (queueDisc1, 0, 3000);
+    dwrrQdisc->AddDWRRClass (queueDisc2, 1, 1500);
 
     Ptr<NetDevice> device = switchToRecvNetDeviceContainer.Get (0);
     Ptr<TrafficControlLayer> tcl = device->GetNode ()->GetObject<TrafficControlLayer> ();
@@ -374,9 +382,44 @@ int main (int argc, char *argv[])
         srand (randomSeed);
     }
 
-    NS_LOG_INFO ("Install background application");
-
     uint16_t basePort = 8080;
+
+    NS_LOG_INFO ("Install 3 large TCP flows");
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
+        source.SetAttribute ("MaxBytes", UintegerValue (150000)); // 150kb
+        source.SetAttribute ("SendSize", UintegerValue (1400));
+        source.SetAttribute ("SimpleTOS", UintegerValue ((i + 1) % 2));
+        ApplicationContainer sourceApps = source.Install (senders.Get (i));
+        sourceApps.Start (Seconds (0.0));
+        sourceApps.Stop (Seconds (simEndTime));
+
+        PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), basePort++));
+        ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer.Get (1));
+        sinkApp.Start (Seconds (0.0));
+        sinkApp.Stop (Seconds (simEndTime));
+    }
+
+    NS_LOG_INFO ("Install 2 short TCP flows");
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
+        source.SetAttribute ("MaxBytes", UintegerValue (14000)); // 14kb
+        source.SetAttribute ("SendSize", UintegerValue (1400));
+        source.SetAttribute ("SimpleTOS", UintegerValue (i));
+        ApplicationContainer sourceApps = source.Install (senders.Get (i));
+        sourceApps.Start (Seconds (0.0));
+        sourceApps.Stop (Seconds (simEndTime));
+
+        PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), basePort++));
+        ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer.Get (1));
+        sinkApp.Start (Seconds (0.0));
+        sinkApp.Stop (Seconds (simEndTime));
+    }
+
+    /*
+    NS_LOG_INFO ("Install background application");
 
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
@@ -403,9 +446,10 @@ int main (int argc, char *argv[])
             startTime += poission_gen_interval (requestRate);
         }
     }
+    */
 
-    if (enableIncast)
-    {
+    /*
+
     NS_LOG_INFO ("Install incast application");
 
     double incast_period = endTime / 10;
@@ -431,8 +475,7 @@ int main (int argc, char *argv[])
             startTime += incast_period;
         }
     }
-    }
-
+    */
 
     NS_LOG_INFO ("Start Tracing System");
 
