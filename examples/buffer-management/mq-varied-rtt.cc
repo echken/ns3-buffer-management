@@ -54,7 +54,7 @@ GetFormatedStr (std::string id, std::string str, std::string terminal, AQM aqm, 
     std::stringstream ss;
     if (aqm == TCN)
     {
-        ss << id << "_mq_s_red_" << str << "_t" << redThreshold << "_n" << numOfSenders << "_l" << load << "." << terminal;
+        ss << id << "_mq_s_tcn_" << str << "_t" << redThreshold << "_n" << numOfSenders << "_l" << load << "." << terminal;
     }
     else if (aqm == CODEL)
     {
@@ -108,21 +108,21 @@ int main (int argc, char *argv[])
     std::string id = "";
 
     std::string transportProt = "DcTcp";
-    std::string aqmStr = "CODEL";
+    std::string aqmStr = "TCN";
     AQM aqm;
     double endTime = 10.0;
-    double simEndTime = 15.0;
+    double simEndTime = 0.1;
 
     uint32_t numOfSenders = 5;
 
     double load = 0.1;
     std::string cdfFileName = "";
-    std::string rttCdfFileName = "";
+    //std::string rttCdfFileName = "";
 
     unsigned randomSeed = 0;
     uint32_t flowNum = 1000;
 
-    uint32_t bufferSize = 120;
+    uint32_t bufferSize = 600;
 
     uint32_t TCNThreshold = 65;
 
@@ -137,6 +137,8 @@ int main (int argc, char *argv[])
     uint32_t pieInterval = 10; // 10ms
 
     // bool enableIncast = false;
+    //
+    bool isHighRTT = false;
 
     CommandLine cmd;
     cmd.AddValue ("id", "The running ID", id);
@@ -147,7 +149,7 @@ int main (int argc, char *argv[])
     cmd.AddValue ("endTime", "Flow launch end time", endTime);
     cmd.AddValue ("simEndTime", "Simulation end time", simEndTime);
     cmd.AddValue ("cdfFileName", "File name for flow distribution", cdfFileName);
-    cmd.AddValue ("rttCdfFileName", "File name for RTT distribution", rttCdfFileName);
+    //cmd.AddValue ("rttCdfFileName", "File name for RTT distribution", rttCdfFileName);
     cmd.AddValue ("load", "Load of the network, 0.0 - 1.0", load);
     cmd.AddValue ("randomSeed", "Random seed, 0 for random generated", randomSeed);
     cmd.AddValue ("flowNum", "Total flow num", flowNum);
@@ -166,6 +168,8 @@ int main (int argc, char *argv[])
 
     cmd.AddValue ("PIETarget", "The pie delay target", pieTarget);
     cmd.AddValue ("PIEInterval", "The interval used to update PIE p", pieInterval);
+
+    cmd.AddValue ("HighRTT", "Whether to enable high RTT", isHighRTT);
 
     // cmd.AddValue ("enableIncast", "Whether to enable incast", enableIncast);
 
@@ -188,7 +192,6 @@ int main (int argc, char *argv[])
     if (aqmStr.compare ("TCN") == 0)
     {
         aqm = TCN;
-        return 0;
     }
     else if (aqmStr.compare ("CODEL") == 0)
     {
@@ -257,11 +260,13 @@ int main (int argc, char *argv[])
     Config::SetDefault ("ns3::PieQueueDisc::QueueLimit", UintegerValue (bufferSize));
     Config::SetDefault ("ns3::PieQueueDisc::QueueDelayReference", TimeValue (MicroSeconds (pieTarget)));
 
+    /*
     NS_LOG_INFO ("Loading RTT CDF");
     struct cdf_table *rttCdfTable = new cdf_table ();
     init_cdf (rttCdfTable);
     load_cdf (rttCdfTable, rttCdfFileName.c_str ());
     NS_LOG_INFO ("AVG RTT: " << avg_cdf (rttCdfTable));
+    */
 
     NS_LOG_INFO ("Setting up nodes.");
     NodeContainer senders;
@@ -290,7 +295,7 @@ int main (int argc, char *argv[])
 
     for (uint32_t i = 0; i < numOfSenders; ++i)
     {
-        uint32_t linkLatency = gen_random_cdf (rttCdfTable) - 5;
+        uint32_t linkLatency = isHighRTT == false ? 20 : 60;
         NS_LOG_INFO ("Generate link latency: " << linkLatency);
         p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(linkLatency)));
         p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
@@ -303,7 +308,7 @@ int main (int argc, char *argv[])
         tc.Uninstall (netDeviceContainer);
     }
 
-    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(5)));
+    p2p.SetChannelAttribute ("Delay", TimeValue (MicroSeconds(20)));
     p2p.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
     p2p.SetQueue ("ns3::DropTailQueue", "MaxPackets", UintegerValue (5));
 
@@ -357,7 +362,7 @@ int main (int argc, char *argv[])
     tc.SetRootQueueDisc ("ns3::PfifoFastQueueDisc", "Limit", UintegerValue (bufferSize));
     Ipv4InterfaceContainer switchToRecvIpv4Container = ipv4.Assign (switchToRecvNetDeviceContainer);
 
-    free_cdf (rttCdfTable);
+    //free_cdf (rttCdfTable);
 
     NS_LOG_INFO ("Setting up routing table");
 
@@ -384,30 +389,13 @@ int main (int argc, char *argv[])
 
     uint16_t basePort = 8080;
 
-    NS_LOG_INFO ("Install 3 large TCP flows");
-    for (uint32_t i = 0; i < 3; ++i)
-    {
-        BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
-        source.SetAttribute ("MaxBytes", UintegerValue (150000)); // 150kb
-        source.SetAttribute ("SendSize", UintegerValue (1400));
-        source.SetAttribute ("SimpleTOS", UintegerValue ((i + 1) % 2));
-        ApplicationContainer sourceApps = source.Install (senders.Get (i));
-        sourceApps.Start (Seconds (0.0));
-        sourceApps.Stop (Seconds (simEndTime));
-
-        PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), basePort++));
-        ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer.Get (1));
-        sinkApp.Start (Seconds (0.0));
-        sinkApp.Stop (Seconds (simEndTime));
-    }
-
-    NS_LOG_INFO ("Install 2 short TCP flows");
+    NS_LOG_INFO ("Install 2 large TCP flows");
     for (uint32_t i = 0; i < 2; ++i)
     {
         BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
-        source.SetAttribute ("MaxBytes", UintegerValue (14000)); // 14kb
+        source.SetAttribute ("MaxBytes", UintegerValue (1500000)); // 150kb
         source.SetAttribute ("SendSize", UintegerValue (1400));
-        source.SetAttribute ("SimpleTOS", UintegerValue (i));
+        source.SetAttribute ("SimpleTOS", UintegerValue (i % 2));
         ApplicationContainer sourceApps = source.Install (senders.Get (i));
         sourceApps.Start (Seconds (0.0));
         sourceApps.Stop (Seconds (simEndTime));
@@ -417,6 +405,25 @@ int main (int argc, char *argv[])
         sinkApp.Start (Seconds (0.0));
         sinkApp.Stop (Seconds (simEndTime));
     }
+
+
+    NS_LOG_INFO ("Install 2 short TCP flows");
+    for (uint32_t i = 0; i < 8; ++i)
+    {
+        BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (switchToRecvIpv4Container.GetAddress (1), basePort));
+        source.SetAttribute ("MaxBytes", UintegerValue (28000)); // 14kb
+        source.SetAttribute ("SendSize", UintegerValue (1400));
+        source.SetAttribute ("SimpleTOS", UintegerValue (i % 2));
+        ApplicationContainer sourceApps = source.Install (senders.Get (2 + i % 2));
+        sourceApps.Start (Seconds (0.0005 * i));
+        sourceApps.Stop (Seconds (simEndTime));
+
+        PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), basePort++));
+        ApplicationContainer sinkApp = sink.Install (switchToRecvNodeContainer.Get (1));
+        sinkApp.Start (Seconds (0.0));
+        sinkApp.Stop (Seconds (simEndTime));
+    }
+
 
     /*
     NS_LOG_INFO ("Install background application");
