@@ -831,6 +831,7 @@ int main (int argc, char *argv[])
 
             if (transportProt.compare ("DcTcp") == 0)
 		    {
+          //TODO We should change this, at endhost we are not going to mark ECN but add delay using delay queue disc
 		        NS_LOG_INFO ("Install RED Queue for leaf: " << i << " and server: " << j);
 	            tc.Install (netDeviceContainer);
             }
