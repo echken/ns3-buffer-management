@@ -26,7 +26,8 @@ namespace ns3 {
     DelayQueueDisc ();
     virtual ~DelayQueueDisc ();
 
-    void AddDelayClass (Ptr<QueueDisc> qdisc, int32_t cl);
+    void AddDelayClass (Ptr<QueueDisc> qdisc, int32_t cl, Time delay);
+    void AddOutQueue (Ptr<QueueDisc> qdisc);
 
   private:
     virtual bool DoEnqueue (Ptr<QueueDiscItem> item);
@@ -35,9 +36,10 @@ namespace ns3 {
     virtual bool CheckConfig (void);
     virtual void InitializeParams (void);
 
-    std::map<uint32_t, Ptr<DelayClass> > m_delayClasses;
-    std::map<uint32_t, EventId> m_events;
-    Ptr<QueueDisc> outQueue;
+    void FetchToOutQueue (Ptr<QueueDisc> fromQueueDisc);
+
+    std::map<int32_t, Ptr<DelayClass> > m_delayClasses;
+    Ptr<QueueDisc> m_outQueue;
   };
 
 }
