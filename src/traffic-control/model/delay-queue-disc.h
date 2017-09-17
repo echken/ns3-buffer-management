@@ -4,6 +4,7 @@
 #include "ns3/queue-disc.h"
 #include "ns3/nstime.h"
 #include <list>
+#include <queue>
 
 namespace ns3 {
 
@@ -14,7 +15,7 @@ namespace ns3 {
 
     DelayClass ();
     
-    Ptr<QueueDisc> qdisc;
+    std::queue<Ptr<const QueueDiscItem> > queue;
     Time delay;
   };
 
@@ -26,8 +27,7 @@ namespace ns3 {
     DelayQueueDisc ();
     virtual ~DelayQueueDisc ();
 
-    void AddDelayClass (Ptr<QueueDisc> qdisc, int32_t cl, Time delay);
-    void AddOutQueue (Ptr<QueueDisc> qdisc);
+    void AddDelayClass (int32_t cl, Time delay);
 
   private:
     virtual bool DoEnqueue (Ptr<QueueDiscItem> item);
@@ -36,10 +36,10 @@ namespace ns3 {
     virtual bool CheckConfig (void);
     virtual void InitializeParams (void);
 
-    void FetchToOutQueue (Ptr<QueueDisc> fromQueueDisc);
+    void FetchToOutQueue (Ptr<DelayClass> fromClass);
 
     std::map<int32_t, Ptr<DelayClass> > m_delayClasses;
-    Ptr<QueueDisc> m_outQueue;
+    std::queue<Ptr<const QueueDiscItem> > m_outQueue;
   };
 
 }

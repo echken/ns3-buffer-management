@@ -48,33 +48,26 @@ namespace ns3 {
   }
 
   void
-  DelayQueueDisc::AddDelayClass (Ptr<QueueDisc> qdisc, int32_t cl, Time delay)
+  DelayQueueDisc::AddDelayClass (int32_t cl, Time delay)
   {
     Ptr<DelayClass> delayClass = CreateObject<DelayClass> ();
-    delayClass->qdisc = qdisc;
     delayClass->delay = delay;
     m_delayClasses[cl] = delayClass;
   }
 
   void
-  DelayQueueDisc::AddOutQueue (Ptr<QueueDisc> qdisc)
-  {
-    m_outQueue = qdisc;
-  }
-
-  void
-  DelayQueueDisc::FetchToOutQueue (Ptr<QueueDisc> fromQueueDisc)
+  DelayQueueDisc::FetchToOutQueue (Ptr<DelayClass> fromClass)
   {
     Ptr<const QueueDiscItem> item = 0;
-    item = fromQueueDisc->Dequeue ();
+    item = fromClass->queue.front ();
+    fromClass->queue.pop ();
 
     if (item == 0)
       {
         NS_LOG_ERROR ("Cannot fetch from qdisc, which is impossible to happen!");
         return;
       }
-
-    m_outQueue->Enqueue (ConstCast<QueueDiscItem> (item));
+    m_outQueue.push (item);
   }
 
   bool
@@ -94,10 +87,10 @@ namespace ns3 {
       }
 
     delayClass = itr->second;
-    Ptr<QueueDisc> qdisc = delayClass->qdisc;
 
-    qdisc->Enqueue (item);
-    Simulator::Schedule (delayClass->delay, &DelayQueueDisc::FetchToOutQueue, this, qdisc);
+    delayClass->queue.push (ConstCast<const QueueDiscItem> (item));
+
+    Simulator::Schedule (delayClass->delay, &DelayQueueDisc::FetchToOutQueue, this, delayClass);
 
     return true; 
   }
@@ -105,13 +98,18 @@ namespace ns3 {
   Ptr<QueueDiscItem>
   DelayQueueDisc::DoDequeue (void)
   {
-    return m_outQueue->Dequeue ();
+    Ptr<QueueDiscItem> item = 0;
+
+    item = ConstCast<QueueDiscItem> (m_outQueue.front ());
+    m_outQueue.pop ();
+
+    return item;
   }
 
   Ptr<const QueueDiscItem>
   DelayQueueDisc::DoPeek (void) const
   {
-    return m_outQueue->Peek ();
+    return m_outQueue.front ();
   }
 
   bool
@@ -125,12 +123,6 @@ namespace ns3 {
   DelayQueueDisc::InitializeParams (void)
   {
     NS_LOG_FUNCTION (this);
-    m_outQueue->Initialize ();
-    std::map<int32_t, Ptr<DelayClass> >::iterator itr = m_delayClasses.begin ();
-    for (; itr != m_delayClasses.end (); ++itr)
-      {
-        itr->second->qdisc->Initialize ();
-      }
   }
 
 
