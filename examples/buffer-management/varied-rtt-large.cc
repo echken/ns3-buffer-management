@@ -324,7 +324,6 @@ int main (int argc, char *argv[])
 
           //TODO We should change this, at endhost we are not going to mark ECN but add delay using delay queue disc
               
-          /*
           Ptr<DelayQueueDisc> delayQueueDisc = CreateObject<DelayQueueDisc> ();
           Ptr<Ipv4SimplePacketFilter> filter = CreateObject<Ipv4SimplePacketFilter> ();
 
@@ -362,7 +361,6 @@ int main (int argc, char *argv[])
           Ptr<TrafficControlLayer> tcl1 = netDevice1->GetNode ()->GetObject<TrafficControlLayer> ();
           switchSideQueueDisc->SetNetDevice (netDevice1);
           tcl1->SetRootQueueDiscOnDevice (netDevice1, switchSideQueueDisc);
-          */
 
           Ipv4InterfaceContainer interfaceContainer = ipv4.Assign (netDeviceContainer);
 
