@@ -422,6 +422,7 @@ int main (int argc, char *argv[])
     }
 
   NS_LOG_INFO ("Populate global routing tables");
+  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
   double oversubRatio = static_cast<double>(SERVER_COUNT * LEAF_SERVER_CAPACITY) / (SPINE_LEAF_CAPACITY * SPINE_COUNT * LINK_COUNT);
   NS_LOG_INFO ("Over-subscription ratio: " << oversubRatio);
