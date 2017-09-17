@@ -103,6 +103,9 @@ void install_applications (int fromLeafId, NodeContainer servers, double request
           source.SetAttribute ("SendSize", UintegerValue (PACKET_SIZE));
           source.SetAttribute ("MaxBytes", UintegerValue(flowSize));
 
+          uint32_t tos = rand() % 5;
+          source.SetAttribute ("SimpleTOS", UintegerValue (tos));
+
           // Install apps
           ApplicationContainer sourceApp = source.Install (servers.Get (fromServerIndex));
           sourceApp.Start (Seconds (startTime));
@@ -158,7 +161,7 @@ int main (int argc, char *argv[])
   uint64_t spineLeafCapacity = 10;
   uint64_t leafServerCapacity = 10;
 
-  uint32_t TCNThreshold = 150;
+  uint32_t TCNThreshold = 80;
   
   uint32_t CODELInterval = 150;
   uint32_t CODELTarget = 10;
@@ -290,7 +293,6 @@ int main (int argc, char *argv[])
   NS_LOG_INFO ("Install Internet stacks");
   InternetStackHelper internet;
   Ipv4GlobalRoutingHelper globalRoutingHelper;
-
 
   internet.SetRoutingHelper (globalRoutingHelper);
 
