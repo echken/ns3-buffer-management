@@ -110,6 +110,8 @@ void install_incast_applications (NodeContainer servers, long &flowCount, int SE
               ApplicationContainer sinkApp = sink.Install (servers. Get (i));
               sinkApp.Start (Seconds (START_TIME));
               sinkApp.Stop (Seconds (END_TIME));
+
+              startTime += static_cast<double> (rand () % 1000) / 1000000;
             }
 
         }
