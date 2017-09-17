@@ -105,11 +105,13 @@ namespace ns3 {
     NS_LOG_FUNCTION (this);
     Ptr<QueueDiscItem> item = 0;
 
+    if (m_outQueue.empty ())
+      {
+        NS_LOG_INFO ("Nothing to dequeue, skipping this chance...");
+        return 0;
+      }
+
     item = ConstCast<QueueDiscItem> (m_outQueue.front ());
-    if (item == 0) {
-      NS_LOG_INFO ("Nothing to dequeue, skipping this chance...");
-      return 0;
-    }
     m_outQueue.pop ();
 
     return item;
