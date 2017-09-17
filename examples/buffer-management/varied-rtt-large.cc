@@ -261,7 +261,7 @@ int main (int argc, char *argv[])
       // XXX Configuration
       Config::SetDefault ("ns3::XXXQueueDisc::Mode", StringValue ("QUEUE_MODE_PACKETS"));
       Config::SetDefault ("ns3::XXXQueueDisc::MaxPackets", UintegerValue (BUFFER_SIZE));
-      Config::SetDefault ("ns3::XXXQueueDisc::InstantaneousMarkingThreshold", UintegerValue (xxxMarkingThreshold));
+      Config::SetDefault ("ns3::XXXQueueDisc::InstantaneousMarkingThreshold", TimeValue (MicroSeconds (xxxMarkingThreshold)));
       Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingTarget", TimeValue (MicroSeconds (xxxTarget)));
       Config::SetDefault ("ns3::XXXQueueDisc::PersistentMarkingInterval", TimeValue (MicroSeconds (xxxInterval)));
     }
