@@ -356,6 +356,7 @@ int main (int argc, char *argv[])
 
           Ptr<NetDevice> netDevice1 = netDeviceContainer.Get (1);
           Ptr<TrafficControlLayer> tcl1 = netDevice1->GetNode ()->GetObject<TrafficControlLayer> ();
+          switchSideQueueDisc->SetNetDevice (netDevice1);
           tcl1->SetRootQueueDiscOnDevice (netDevice1, switchSideQueueDisc);
 
           Ipv4InterfaceContainer interfaceContainer = ipv4.Assign (netDeviceContainer);
