@@ -71,6 +71,52 @@ T rand_range (T min, T max)
   return min + ((double)max - min) * rand () / RAND_MAX;
 }
 
+void install_incast_applications (NodeContainer servers, long &flowCount, int SERVER_COUNT, int LEAF_COUNT, double START_TIME, double END_TIME, double FLOW_LAUNCH_END_TIME)
+{
+  NS_LOG_INFO ("Install incast applications:");
+  for (int i = 0; i < SERVER_COUNT; i++)
+    {
+      Ptr<Node> destServer = servers.Get (i);
+      Ptr<Ipv4> ipv4 = destServer->GetObject<Ipv4> ();
+      Ipv4InterfaceAddress destInterface = ipv4->GetAddress (1,0);
+      Ipv4Address destAddress = destInterface.GetLocal ();
+
+      uint32_t fanout = rand () % 10;
+      for (uint32_t j = 0; j < fanout; j++)
+        {
+          double startTime = START_TIME + rand () % 100;
+          while (startTime < FLOW_LAUNCH_END_TIME)
+            {
+              flowCount ++;
+              uint32_t fromServerIndex = rand () % SERVER_COUNT;
+              uint16_t port = rand_range (PORT_START, PORT_END);
+
+              BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (destAddress, port));
+              uint32_t flowSize = rand () % 10000;
+              uint32_t tos = rand() % 5;
+
+              source.SetAttribute ("SendSize", UintegerValue (PACKET_SIZE));
+              source.SetAttribute ("MaxBytes", UintegerValue(flowSize));
+              source.SetAttribute ("SimpleTOS", UintegerValue (tos));
+
+              // Install apps
+              ApplicationContainer sourceApp = source.Install (servers.Get (fromServerIndex));
+              sourceApp.Start (Seconds (startTime));
+              sourceApp.Stop (Seconds (END_TIME));
+
+              // Install packet sinks
+              PacketSinkHelper sink ("ns3::TcpSocketFactory",
+                                     InetSocketAddress (Ipv4Address::GetAny (), port));
+              ApplicationContainer sinkApp = sink.Install (servers. Get (i));
+              sinkApp.Start (Seconds (START_TIME));
+              sinkApp.Stop (Seconds (END_TIME));
+            }
+
+        }
+
+    }
+}
+
 void install_applications (int fromLeafId, NodeContainer servers, double requestRate, struct cdf_table *cdfTable,
                            long &flowCount, long &totalFlowSize, int SERVER_COUNT, int LEAF_COUNT, double START_TIME, double END_TIME, double FLOW_LAUNCH_END_TIME)
 {
@@ -98,12 +144,12 @@ void install_applications (int fromLeafId, NodeContainer servers, double request
 
           BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (destAddress, port));
           uint32_t flowSize = gen_random_cdf (cdfTable);
+          uint32_t tos = rand() % 5;
 
           totalFlowSize += flowSize;
+
           source.SetAttribute ("SendSize", UintegerValue (PACKET_SIZE));
           source.SetAttribute ("MaxBytes", UintegerValue(flowSize));
-
-          uint32_t tos = rand() % 5;
           source.SetAttribute ("SimpleTOS", UintegerValue (tos));
 
           // Install apps
@@ -162,10 +208,10 @@ int main (int argc, char *argv[])
   uint64_t leafServerCapacity = 10;
 
   uint32_t TCNThreshold = 80;
-  
+
   uint32_t CODELInterval = 150;
   uint32_t CODELTarget = 10;
-  
+
   uint32_t xxxInterval = 150;
   uint32_t xxxTarget = 10;
   uint32_t xxxMarkingThreshold = 30;
@@ -325,7 +371,7 @@ int main (int argc, char *argv[])
           NetDeviceContainer netDeviceContainer = p2p.Install (nodeContainer);
 
           //TODO We should change this, at endhost we are not going to mark ECN but add delay using delay queue disc
-              
+
           Ptr<DelayQueueDisc> delayQueueDisc = CreateObject<DelayQueueDisc> ();
           Ptr<Ipv4SimplePacketFilter> filter = CreateObject<Ipv4SimplePacketFilter> ();
 
@@ -467,6 +513,8 @@ int main (int argc, char *argv[])
   NS_LOG_INFO ("Actual average flow size: " << static_cast<double> (totalFlowSize) / flowCount);
 
   NS_LOG_INFO ("Create incast traffic pattern");
+  long incastFlowCount = 0;
+  install_incast_applications (servers, incastFlowCount, SERVER_COUNT, LEAF_COUNT, START_TIME, END_TIME, FLOW_LAUNCH_END_TIME);
 
   NS_LOG_INFO ("Enabling flow monitor");
 
