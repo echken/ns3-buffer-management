@@ -326,6 +326,9 @@ int main (int argc, char *argv[])
 
           delayQueueDisc->AddPacketFilter (filter);
 
+          Ptr<PfifoFastQueueDisc> pfifoQueueDisc = CreateObject<PfifoFastQueueDisc> ();
+          delayQueueDisc->AddOutQueue (pfifoQueueDisc);
+
           ObjectFactory innerQueueFactory;
           innerQueueFactory.SetTypeId ("ns3::PfifoFastQueueDisc");
 
