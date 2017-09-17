@@ -326,20 +326,11 @@ int main (int argc, char *argv[])
 
           delayQueueDisc->AddPacketFilter (filter);
 
-          ObjectFactory innerQueueFactory;
-          innerQueueFactory.SetTypeId ("ns3::PfifoFastQueueDisc");
-
-          Ptr<QueueDisc> queueDisc1 = innerQueueFactory.Create<QueueDisc> ();
-          Ptr<QueueDisc> queueDisc2 = innerQueueFactory.Create<QueueDisc> ();
-          Ptr<QueueDisc> queueDisc3 = innerQueueFactory.Create<QueueDisc> ();
-          Ptr<QueueDisc> queueDisc4 = innerQueueFactory.Create<QueueDisc> ();
-          Ptr<QueueDisc> queueDisc5 = innerQueueFactory.Create<QueueDisc> ();
-
-          delayQueueDisc->AddDelayClass (queueDisc1, 0, MicroSeconds (1));
-          delayQueueDisc->AddDelayClass (queueDisc2, 1, MicroSeconds (20));
-          delayQueueDisc->AddDelayClass (queueDisc3, 2, MicroSeconds (50));
-          delayQueueDisc->AddDelayClass (queueDisc4, 3, MicroSeconds (80));
-          delayQueueDisc->AddDelayClass (queueDisc5, 4, MicroSeconds (160));
+          delayQueueDisc->AddDelayClass (0, MicroSeconds (1));
+          delayQueueDisc->AddDelayClass (1, MicroSeconds (20));
+          delayQueueDisc->AddDelayClass (2, MicroSeconds (50));
+          delayQueueDisc->AddDelayClass (3, MicroSeconds (80));
+          delayQueueDisc->AddDelayClass (4, MicroSeconds (160));
 
           ObjectFactory switchSideQueueFactory;
 
