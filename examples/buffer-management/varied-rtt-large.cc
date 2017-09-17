@@ -84,7 +84,7 @@ void install_incast_applications (NodeContainer servers, long &flowCount, int SE
       uint32_t fanout = rand () % 10;
       for (uint32_t j = 0; j < fanout; j++)
         {
-          double startTime = START_TIME + rand () % 100;
+          double startTime = START_TIME + static_cast<double> (rand () % 100) / 1000000;
           while (startTime < FLOW_LAUNCH_END_TIME)
             {
               flowCount ++;
