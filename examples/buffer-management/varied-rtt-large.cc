@@ -278,6 +278,8 @@ int main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (160000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (160000000));
 
+  Config::SetDefault ("ns3::Ipv4GlobalRouting::PerflowEcmpRouting", BooleanValue(true));
+
   NodeContainer spines;
   spines.Create (SPINE_COUNT);
   NodeContainer leaves;
@@ -287,10 +289,6 @@ int main (int argc, char *argv[])
 
   NS_LOG_INFO ("Install Internet stacks");
   InternetStackHelper internet;
-  Ipv4GlobalRoutingHelper globalRoutingHelper;
-
-  internet.SetRoutingHelper (globalRoutingHelper);
-  Config::SetDefault ("ns3::Ipv4GlobalRouting::PerflowEcmpRouting", BooleanValue(true));
 
   internet.Install (servers);
   internet.Install (spines);

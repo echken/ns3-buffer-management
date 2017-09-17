@@ -51,6 +51,7 @@ namespace ns3 {
   DelayQueueDisc::AddDelayClass (int32_t cl, Time delay)
   {
     Ptr<DelayClass> delayClass = CreateObject<DelayClass> ();
+    delayClass->cl = cl;
     delayClass->delay = delay;
     m_delayClasses[cl] = delayClass;
   }
@@ -67,7 +68,9 @@ namespace ns3 {
         NS_LOG_ERROR ("Cannot fetch from qdisc, which is impossible to happen!");
         return;
       }
+
     m_outQueue.push (item);
+    NS_LOG_INFO ("Fetch from class: " << fromClass->cl << " to out queue");
   }
 
   bool
@@ -89,8 +92,9 @@ namespace ns3 {
     delayClass = itr->second;
 
     delayClass->queue.push (ConstCast<const QueueDiscItem> (item));
+    NS_LOG_INFO ("Enqueue to class: " << cl);
 
-    Simulator::Schedule (delayClass->delay, &DelayQueueDisc::FetchToOutQueue, this, delayClass);
+    m_event = Simulator::Schedule (delayClass->delay, &DelayQueueDisc::FetchToOutQueue, this, delayClass);
 
     return true; 
   }
@@ -98,9 +102,14 @@ namespace ns3 {
   Ptr<QueueDiscItem>
   DelayQueueDisc::DoDequeue (void)
   {
+    NS_LOG_FUNCTION (this);
     Ptr<QueueDiscItem> item = 0;
 
     item = ConstCast<QueueDiscItem> (m_outQueue.front ());
+    if (item == 0) {
+      NS_LOG_INFO ("Nothing to dequeue, skipping this chance...");
+      return 0;
+    }
     m_outQueue.pop ();
 
     return item;

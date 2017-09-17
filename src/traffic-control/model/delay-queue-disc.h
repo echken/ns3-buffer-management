@@ -3,6 +3,7 @@
 
 #include "ns3/queue-disc.h"
 #include "ns3/nstime.h"
+#include "ns3/event-id.h"
 #include <list>
 #include <queue>
 
@@ -15,6 +16,7 @@ namespace ns3 {
 
     DelayClass ();
     
+    int32_t cl;
     std::queue<Ptr<const QueueDiscItem> > queue;
     Time delay;
   };
@@ -40,6 +42,7 @@ namespace ns3 {
 
     std::map<int32_t, Ptr<DelayClass> > m_delayClasses;
     std::queue<Ptr<const QueueDiscItem> > m_outQueue;
+    EventId m_event;
   };
 
 }
