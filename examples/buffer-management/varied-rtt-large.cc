@@ -516,6 +516,8 @@ int main (int argc, char *argv[])
   long incastFlowCount = 0;
   install_incast_applications (servers, incastFlowCount, SERVER_COUNT, LEAF_COUNT, START_TIME, END_TIME, FLOW_LAUNCH_END_TIME);
 
+  NS_LOG_INFO ("Total incast flow: " << incastFlowCount);
+
   NS_LOG_INFO ("Enabling flow monitor");
 
   Ptr<FlowMonitor> flowMonitor;
