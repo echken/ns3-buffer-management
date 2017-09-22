@@ -111,7 +111,7 @@ void install_incast_applications (NodeContainer servers, long &flowCount, int SE
               sinkApp.Start (Seconds (START_TIME));
               sinkApp.Stop (Seconds (END_TIME));
 
-              startTime += static_cast<double> (rand () % 100) / 1000000;
+              startTime += static_cast<double> (rand () % 1000) / 1000000;
             }
 
         }
@@ -381,7 +381,7 @@ int main (int argc, char *argv[])
 
           delayQueueDisc->AddDelayClass (0, MicroSeconds (1));
           delayQueueDisc->AddDelayClass (1, MicroSeconds (20));
-          delayQueueDisc->AddDelayClass (2, MicroSeconds (50));
+          delayQueueDisc->AddDelayClass (2, MicroSeconds (50)http://www.cse.ust.hk/~kaichen/papers/hermes-sigcomm17.pdf);
           delayQueueDisc->AddDelayClass (3, MicroSeconds (80));
           delayQueueDisc->AddDelayClass (4, MicroSeconds (160));
 
@@ -514,11 +514,13 @@ int main (int argc, char *argv[])
 
   NS_LOG_INFO ("Actual average flow size: " << static_cast<double> (totalFlowSize) / flowCount);
 
+  /*
   NS_LOG_INFO ("Create incast traffic pattern");
   long incastFlowCount = 0;
   install_incast_applications (servers, incastFlowCount, SERVER_COUNT, LEAF_COUNT, START_TIME, END_TIME, FLOW_LAUNCH_END_TIME);
 
   NS_LOG_INFO ("Total incast flow: " << incastFlowCount);
+  */
 
   NS_LOG_INFO ("Enabling flow monitor");
 
