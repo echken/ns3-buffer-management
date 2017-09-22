@@ -379,9 +379,9 @@ int main (int argc, char *argv[])
 
           delayQueueDisc->AddPacketFilter (filter);
 
-          delayQueueDisc->AddDelayClass (0, MicroSeconds (1));
+          delayQueueDisc->ddDelayClass (0, MicroSeconds (1));
           delayQueueDisc->AddDelayClass (1, MicroSeconds (20));
-          delayQueueDisc->AddDelayClass (2, MicroSeconds (50)http://www.cse.ust.hk/~kaichen/papers/hermes-sigcomm17.pdf);
+          delayQueueDisc->AddDelayClass (2, MicroSeconds (50));
           delayQueueDisc->AddDelayClass (3, MicroSeconds (80));
           delayQueueDisc->AddDelayClass (4, MicroSeconds (160));
 
