@@ -379,7 +379,7 @@ int main (int argc, char *argv[])
 
           delayQueueDisc->AddPacketFilter (filter);
 
-          delayQueueDisc->ddDelayClass (0, MicroSeconds (1));
+          delayQueueDisc->AddDelayClass (0, MicroSeconds (1));
           delayQueueDisc->AddDelayClass (1, MicroSeconds (20));
           delayQueueDisc->AddDelayClass (2, MicroSeconds (50));
           delayQueueDisc->AddDelayClass (3, MicroSeconds (80));
