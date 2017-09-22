@@ -30,7 +30,7 @@ extern "C"
 }
 
 #define LINK_CAPACITY_BASE    1000000000          // 1Gbps
-#define BUFFER_SIZE 600                           // 250 packets
+#define BUFFER_SIZE 120                           // 250 packets
 
 // The flow port range, each flow will be assigned a random port number within this range
 #define PORT_START 10000
@@ -514,13 +514,11 @@ int main (int argc, char *argv[])
 
   NS_LOG_INFO ("Actual average flow size: " << static_cast<double> (totalFlowSize) / flowCount);
 
-  /*
   NS_LOG_INFO ("Create incast traffic pattern");
   long incastFlowCount = 0;
   install_incast_applications (servers, incastFlowCount, SERVER_COUNT, LEAF_COUNT, START_TIME, END_TIME, FLOW_LAUNCH_END_TIME);
 
   NS_LOG_INFO ("Total incast flow: " << incastFlowCount);
-  */
 
   NS_LOG_INFO ("Enabling flow monitor");
 
