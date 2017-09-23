@@ -33,8 +33,8 @@ extern "C"
 #define BUFFER_SIZE 120                           // 250 packets
 
 // The flow port range, each flow will be assigned a random port number within this range
-#define PORT_START 10000
-#define PORT_END 50000
+
+static uint16_t PORT = 1000;
 
 // Adopted from the simulation from WANG PENG
 // Acknowledged to https://williamcityu@bitbucket.org/williamcityu/2016-socc-simulation.git
@@ -81,7 +81,7 @@ void install_incast_applications (NodeContainer servers, long &flowCount, int SE
       Ipv4InterfaceAddress destInterface = ipv4->GetAddress (1,0);
       Ipv4Address destAddress = destInterface.GetLocal ();
 
-      uint32_t fanout = rand () % 10;
+      uint32_t fanout = rand () % 50 + 100;
       for (uint32_t j = 0; j < fanout; j++)
         {
           double startTime = START_TIME + static_cast<double> (rand () % 100) / 1000000;
@@ -89,7 +89,7 @@ void install_incast_applications (NodeContainer servers, long &flowCount, int SE
             {
               flowCount ++;
               uint32_t fromServerIndex = rand () % SERVER_COUNT;
-              uint16_t port = rand_range (PORT_START, PORT_END);
+              uint16_t port = PORT++;
 
               BulkSendHelper source ("ns3::TcpSocketFactory", InetSocketAddress (destAddress, port));
               uint32_t flowSize = rand () % 10000;
@@ -131,7 +131,7 @@ void install_applications (int fromLeafId, NodeContainer servers, double request
       while (startTime < FLOW_LAUNCH_END_TIME)
         {
           flowCount ++;
-          uint16_t port = rand_range (PORT_START, PORT_END);
+          uint16_t port = PORT++;
 
           int destServerIndex = fromServerIndex;
           while (destServerIndex >= fromLeafId * SERVER_COUNT && destServerIndex < fromLeafId * SERVER_COUNT + SERVER_COUNT)
@@ -514,11 +514,13 @@ int main (int argc, char *argv[])
 
   NS_LOG_INFO ("Actual average flow size: " << static_cast<double> (totalFlowSize) / flowCount);
 
+/*
   NS_LOG_INFO ("Create incast traffic pattern");
   long incastFlowCount = 0;
   install_incast_applications (servers, incastFlowCount, SERVER_COUNT, LEAF_COUNT, START_TIME, END_TIME, FLOW_LAUNCH_END_TIME);
 
   NS_LOG_INFO ("Total incast flow: " << incastFlowCount);
+*/
 
   NS_LOG_INFO ("Enabling flow monitor");
 
